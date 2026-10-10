@@ -237,3 +237,9 @@ Each board begins with five host-controlled category introductions. Add a **Cate
 Incorrect bomb cuts flash/shake the module and enforce a one-second server-side cutting lockout. The module header shows mistakes beside **WIRE MODULE**. Positive activity point awards transfer next-question selection to that team; if several teams receive points, the last positive award determines the selector. Zero or negative adjustments do not transfer selection.
 
 New players join with a room code and username, without choosing a team first. The server randomly selects among the teams with the fewest roster members, keeping assignments balanced as players arrive. Players may use **Switch team** after joining the lobby. Reconnecting by username retains the original team. The streamed lobby uses enlarged title/code text and team cards with player names for viewing on a shared screen.
+
+## Final Jeopardy reveals
+
+After answers lock, the host can select **Show team** on any team, in any order. **Reveal answer** and **Reveal wager** independently reveal that team's submission on the streamed board; selecting another team preserves earlier reveals. **Correct** adds the wager and **Incorrect** subtracts it exactly once, including negative totals. Judging selects that team on the stream and shows the score change. A score change necessarily indicates the wager even if its separate reveal panel is still hidden.
+
+After judging every team, select **Show final leaderboard** to display the winners, all team totals, shared ranks for ties, and celebration effects. The last team's reveal remains visible until this button is pressed. Presentation state is saved with the game; reset clears it. Reduced-motion preferences disable celebration animations.

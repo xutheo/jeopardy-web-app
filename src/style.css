@@ -94,7 +94,7 @@
 .stream-board { height:100%; min-height:0; }
 .stream-column { min-height:0; grid-template-rows:minmax(0,1.1fr) repeat(5,minmax(0,1fr)); }
 .stream-column h2, .stream-tile { min-height:0; overflow:hidden; }
-.stream-tile.activity-tile { font-size:clamp(12px,2.2vw,36px); }
+
 .stream-question { position:relative; margin:clamp(8px,2vh,24px); border:3px solid #d7ab5c; border-radius:18px; background:linear-gradient(145deg,#163766,#0b2346); box-shadow:inset 0 0 0 6px #10213c,0 10px 35px #0005; transform-origin:top left; }
 .stream-answer { width:min(90%,1100px); padding:20px; border:2px solid #a4dbb3; border-radius:12px; background:#0c243e; }
 
@@ -119,7 +119,7 @@
 @keyframes boost-pop { 0% { transform:scale(.3) rotate(-12deg); opacity:0; } 25% { transform:scale(1.08) rotate(3deg); opacity:1; } 45%,85% { transform:scale(1) rotate(0); opacity:1; } 100% { transform:scale(1.1); opacity:0; } }
 @keyframes boost-curtain { 0%,85% { opacity:1; } 100% { opacity:0; } }
 @media(prefers-reduced-motion:reduce) { .stream-question { animation:none; } .boost-celebration { animation:none; } .boost-rays { display:none; } .boost-emblem { animation:none; } }
-.stream-tile:not(.activity-tile) { font-size:clamp(22px,min(5.5vw,9vh),128px); line-height:1; white-space:nowrap; }
+.stream-tile { font-size:clamp(22px,min(5.5vw,9vh),128px); line-height:1; white-space:nowrap; }
 .stream-question { animation-duration:1.6s; }
 .stream-question:has(.stream-clue-body) { justify-content:flex-start; min-height:0; gap:12px; }
 .stream-question > .stream-category { flex:none; padding:8px 0; }
@@ -180,3 +180,51 @@
 .bomb-demo{margin:12px 0;width:100%;min-width:0}.bomb-demo img{display:block;width:100%;height:auto;max-height:38vh;object-fit:contain;border-radius:12px}.bomb-demo figcaption{font-size:14px;color:#bac8d2;margin-top:8px;text-align:center}.puzzle-editor .bomb-demo img{max-height:320px}.puzzle-instructions:has(.bomb-demo){width:min(100%,1600px);display:grid;grid-template-columns:1fr 1fr;gap:10px 32px;align-items:center}.puzzle-instructions:has(.bomb-demo)>h1,.puzzle-instructions:has(.bomb-demo)>h2,.puzzle-instructions:has(.bomb-demo)>strong{grid-column:1/-1;margin:6px 0}.puzzle-instructions:has(.bomb-demo)>p{font-size:clamp(18px,1.8vw,28px);text-align:left;margin:12px 0}.puzzle-instructions:has(.bomb-demo)>h1{font-size:clamp(28px,3vw,48px)}
 @media(max-width:800px){.puzzle-instructions:has(.bomb-demo){grid-template-columns:1fr}.puzzle-instructions:has(.bomb-demo)>p{text-align:center}.bomb-demo img{max-height:32vh}}
 .stream-clue-footer:empty{display:none}.puzzle-instructions{flex-shrink:0}.puzzle-instructions .bomb-demo img{max-height:32vh}.puzzle-instructions:has(.bomb-demo)>p{font-size:clamp(18px,1.6vw,26px)}
+
+/* Final Jeopardy presentation */
+.final-reveal-controls{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.final-reveal-controls button{font-size:14px;padding:10px}
+.final-team-reveal{width:min(100%,1100px);text-align:center;animation:final-reveal .5s ease-out}.final-team-reveal h1{margin:12px 0}.final-reveal-value{display:grid;gap:8px;margin:20px auto;padding:16px;border:1px solid #d9af56;border-radius:12px;overflow-wrap:anywhere}.final-reveal-value span{font-size:clamp(14px,1.5vw,24px);color:#e9bd61}.final-reveal-value strong{font-size:clamp(22px,3vw,48px);animation:final-reveal .5s ease-out}.final-team-reveal>div.success-text,.final-team-reveal>div.error-text{font-size:clamp(24px,3vw,48px)}
+.stream-final-results{position:relative;isolation:isolate;width:100%;height:100%;overflow:auto;text-align:center;padding:20px 5%;background:radial-gradient(ellipse at top,#284f83,#0b1931 75%);border:2px solid #d9af56;border-radius:16px}.stream-final-results h1{font-size:clamp(30px,4vw,70px);color:#ffd166;margin:8px 0 20px}.stream-final-results p{margin:0;font-size:24px}.winner-star{font-size:60px;color:#ffd166;animation:winner-glow 2s ease-in-out 3}.stream-final-results ol{list-style:none;padding:0;max-width:1000px;margin:auto;position:relative}.stream-final-results li{display:flex;align-items:center;gap:24px;text-align:left;padding:16px 24px;margin:10px 0;background:#142d50;border:1px solid #486386;border-radius:12px;font-size:clamp(20px,2.4vw,36px);animation:final-reveal .7s ease-out}.stream-final-results li strong{flex:1}.stream-final-results .winner-row{border-color:#ffd166;background:#493f24}.final-confetti{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:-1}.final-confetti i{position:absolute;top:-20px;width:10px;height:20px;animation:final-confetti 4s ease-in 2 both}@keyframes final-confetti{to{transform:translateY(100vh) rotate(600deg);opacity:0}}@keyframes final-reveal{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:translateY(0)}}@keyframes winner-glow{50%{text-shadow:0 0 40px #ffc34a;transform:scale(1.12)}}@media(prefers-reduced-motion:reduce){.final-confetti{display:none}.winner-star,.stream-final-results li,.final-team-reveal,.final-reveal-value strong{animation:none}}
+
+/* Keep the finale within its panel, including the star's scale animation. */
+.stream-final-results{min-width:0;max-width:100%;overflow-x:hidden;overflow-y:auto}
+.stream-final-results .winner-star{display:inline-block}
+.stream-final-results h1,.stream-final-results li strong,.finale h2,.rankings strong{min-width:0;overflow-wrap:anywhere}
+.stream-final-results li{min-width:0;gap:clamp(8px,2vw,24px);padding:16px clamp(10px,2vw,24px)}
+.stream-final-results li b{flex-shrink:0}
+.finale{min-width:0;max-width:100%;overflow-x:clip}
+
+/* Homepage: join alongside hosting, with a sample of the streamed board. */
+.home .hero{grid-template-columns:minmax(0,.85fr) minmax(0,1.3fr);gap:40px;align-items:center}
+.home .hero-copy .join-panel{margin-top:24px;padding:20px;max-width:480px}
+.home .hero-copy .join-panel h2{font-size:22px;margin:0}
+.home .hero-copy .join-panel form{margin-top:16px}
+.home .home-bottom{display:block}.home .how-panel{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}
+.home-stream-preview{margin:0;min-width:0;container-type:inline-size}
+.sample-stream-screen{aspect-ratio:16/10;display:flex;flex-direction:column;gap:10px;padding:12px;background:#101c29;border:1px solid #526d87;border-radius:12px;box-shadow:0 18px 50px #0003;overflow:hidden}
+.sample-stream-screen .stream-board{flex:1;min-height:0;width:100%;gap:5px}
+.sample-stream-screen .stream-column{gap:5px;min-width:0}
+.sample-stream-screen .stream-column h2{font-size:clamp(8px,2cqw,16px);padding:4px;overflow-wrap:anywhere;letter-spacing:0}
+.sample-stream-screen .stream-tile{font-size:clamp(15px,4.5cqw,34px);min-height:0;padding:0}
+.sample-stream-scores{display:flex;gap:8px}.sample-stream-scores>div{flex:1;min-width:0;padding:7px;border:1px solid transparent;border-radius:6px;text-align:center}.sample-stream-scores>div>div{display:flex;justify-content:center;gap:10px;font-size:clamp(9px,2.2cqw,17px)}.sample-stream-scores strong{color:var(--gold)}.sample-stream-scores small{display:block;font-size:clamp(8px,1.7cqw,13px);margin-top:4px}.sample-stream-scores b{display:block;font-size:clamp(6px,1.2cqw,10px);color:var(--gold);margin-top:3px}.home-stream-preview figcaption{font-size:12px;color:var(--muted);text-align:center;margin-top:12px}
+@media(max-width:900px){.home .hero{grid-template-columns:1fr}.home .hero-copy .join-panel{max-width:none}.home-stream-preview{max-width:720px;width:100%;margin:auto}.home .how-panel{grid-template-columns:1fr}}
+
+.stream-instructions{position:absolute;inset:0;z-index:10;overflow-y:auto;overflow-x:hidden;padding:clamp(20px,4vw,64px);border:2px solid var(--gold);border-radius:16px;background:linear-gradient(145deg,#183d70,#0b1931);display:flex;align-items:center;justify-content:center}
+.game-instructions{max-width:1100px;margin:auto;width:100%}.game-instructions h2{font-size:clamp(28px,4vw,60px);color:var(--gold);margin-bottom:24px}.game-instructions ol{display:grid;gap:24px;padding-left:30px}.game-instructions li{padding-left:10px}.game-instructions strong{font-size:clamp(20px,2.4vw,36px)}.game-instructions p{font-size:clamp(16px,1.8vw,27px);margin-top:8px;color:#eeeae1}.question-card .game-instructions{margin-bottom:24px}.question-card .game-instructions h2{font-size:32px}.question-card .game-instructions strong{font-size:22px}.question-card .game-instructions p{font-size:17px}
+
+.home .hero-copy > .hero-subtitle{font-size:clamp(24px,2.4vw,32px);line-height:1.35;margin:16px 0 28px}
+
+
+.team-category-option{display:flex;align-items:center;gap:10px;font-size:15px}.team-category-option input{width:18px;height:18px;margin:0;accent-color:#ad87ef}
+.stream-column.team-based-category h2{background:#52337b;border-color:#bc91ef;color:#fff0ff}
+.stream-category-intro.team-based-intro{background:linear-gradient(145deg,#52337b,#281743);border-color:#bc91ef;box-shadow:inset 0 0 0 6px #301e48}
+
+/* Team-based columns keep the standard blue panels with gold borders. */
+.stream-column.team-based-category h2,
+.stream-column.team-based-category .stream-tile{background:#183d70;border:2px solid #efbf66;color:#efbf66}
+.stream-column.team-based-category h2{color:#eeeae1}
+.stream-column.team-based-category .stream-tile.played{background:#12273f;border-color:#efbf66}
+.stream-category-intro.team-based-intro{background:linear-gradient(145deg,#163766,#0b2346);border-color:#efbf66;box-shadow:inset 0 0 0 6px #10213c;color:#eeeae1}
+.stream-category-intro.team-based-intro h1,
+.stream-category-intro.team-based-intro p,
+.stream-category-intro.team-based-intro>span{color:#eeeae1}

@@ -159,17 +159,22 @@ export function applyCommand(g: Game, actor: Actor, command: Command, now: numbe
       for (const team of g.teams) { team.score = 0; team.queue = []; team.last = null; }
       for (const member of g.players) member.selections = 0;
       g.phase = 'lobby'; g.board = 0; g.current = null; g.paused = false; g.recovery = null;
-      g.ledger = []; g.undo = null; g.finalEntries = {}; g.finalRemainingMs = 30000; g.finalDeadline = null; g.selectorTeamId = null; g.introCategory = null; break;
+      g.ledger = []; g.undo = null; g.finalEntries = {}; g.finalPresentation = undefined; g.instructionsVisible = false; g.finalRemainingMs = 30000; g.finalDeadline = null; g.selectorTeamId = null; g.introCategory = null; break;
     case 'start':
       requireRule(g.phase === 'lobby', 'The game has already started.'); completeContent(g);
       requireRule(g.teams.filter(t => g.players.some(x => x.active && x.teamId === t.id && online.has(x.id))).length >= 2, 'Connect at least one player on each of two teams.');
       for (const t of g.teams) t.queue = shuffle(g.players.filter(x => x.active && x.teamId === t.id).map(x => x.id));
       { const candidates = g.teams.filter(t => g.players.some(p => p.active && p.teamId === t.id && online.has(p.id))); g.selectorTeamId = candidates[randomInt(candidates.length)].id; }
-      g.phase = 'board'; g.introCategory = 0; break;
+      g.phase = 'board'; g.introCategory = 0; g.instructionsVisible = true; break;
+    case 'show-instructions':
+      requireRule(g.phase === 'board' && !g.current && typeof p.visible === 'boolean', 'Instructions can be shown between questions.');
+      g.instructionsVisible = p.visible; break;
     case 'next-category':
+      g.instructionsVisible = false;
       requireRule(g.phase === 'board' && !c && g.introCategory != null, 'No category introduction is active.');
       g.introCategory = g.introCategory === 4 ? null : g.introCategory + 1; break;
-    case 'open-clue': {
+    case 'open-clue':
+      g.instructionsVisible = false; {
       requireRule(g.phase === 'board' && !c, 'Return to the board before choosing a clue.');
       requireRule(Number.isInteger(p.category) && p.category >= 0 && p.category < 5 && Number.isInteger(p.row) && p.row >= 0 && p.row < 5, 'Invalid clue.');
       const clue = g.boards[g.board][p.category].clues[p.row]; requireRule(!clue.used, 'That clue has already been played.');
@@ -272,11 +277,25 @@ export function applyCommand(g: Game, actor: Actor, command: Command, now: numbe
       const e = g.finalEntries[player.teamId]; e.answer = p.answer.trim(); e.submitted = true; break;
     }
     case 'lock-answers': requireRule(g.phase === 'final-answer', 'Answers are already locked.'); g.phase = 'final-judge'; g.finalDeadline = null; break;
+    case 'present-final': {
+      requireRule(g.phase === 'final-judge', 'Final answers are not ready to reveal.');
+      requireRule(g.finalEntries[p.teamId] && g.players.some(player => player.teamId === p.teamId), 'Choose a participating team.');
+      requireRule(['team', 'answer', 'wager'].includes(p.field), 'Choose team, answer, or wager.');
+      const presentation = g.finalPresentation ??= { teamId: null, answers: [], wagers: [] };
+      presentation.teamId = p.teamId;
+      if (p.field !== 'team') { const list = p.field === 'answer' ? presentation.answers : presentation.wagers; if (!list.includes(p.teamId)) list.push(p.teamId); }
+      break;
+    }
+    case 'finish-final':
+      requireRule(g.phase === 'final-judge' && Object.values(g.finalEntries).every(e => e.judged), 'Judge every team before showing the leaderboard.');
+      g.phase = 'finished'; break;
     case 'judge-final': {
       requireRule(g.phase === 'final-judge', 'Final answers are not ready to judge.');
       const e = g.finalEntries[p.teamId]; requireRule(e && !e.judged && typeof p.correct === 'boolean', 'This team is already judged or invalid.');
       e.correct = e.submitted && p.correct; e.judged = true; score(g, p.teamId, (e.wager ?? 0) * (e.correct ? 1 : -1), 'Final Jeopardy');
-      if (Object.values(g.finalEntries).every(e => e.judged)) g.phase = 'finished'; break;
+      const presentation = g.finalPresentation ??= { teamId: null, answers: [], wagers: [] };
+      presentation.teamId = p.teamId;
+      break;
     }
     case 'adjust-score': requireRule(Number.isInteger(p.amount) && Math.abs(p.amount) <= 1000000 && typeof p.reason === 'string' && p.reason.trim().length > 0 && p.reason.length <= 200, 'Enter a whole-number adjustment and a reason.'); score(g, p.teamId, p.amount, p.reason); g.undo = null; break;
     case 'pause': requireRule(g.phase !== 'lobby' && g.phase !== 'finished', 'Pause is only available during gameplay.'); requireRule(!g.paused, 'Already paused.'); pause(g, now); break;
@@ -310,9 +329,10 @@ export function publicView(g: Game, actor: Actor, online: Set<string>, now: numb
   }
   const ownTeam = g.players.find(p => p.id === actor.playerId)?.teamId;
   for (const [teamId, e] of Object.entries(view.finalEntries)) {
-    const reveal = g.phase === 'finished' || e.judged;
-    if (!reveal && ownTeam !== teamId) {
-      if (actor.role !== 'host' || g.phase !== 'final-judge') { e.wager = null; e.answer = ''; }
+    const privileged = ownTeam === teamId || actor.role === 'host' && g.phase === 'final-judge' || g.phase === 'finished';
+    if (!privileged) {
+      if (!g.finalPresentation?.wagers.includes(teamId)) e.wager = null;
+      if (!g.finalPresentation?.answers.includes(teamId)) e.answer = '';
     }
   }
   redactPuzzle(view, actor);

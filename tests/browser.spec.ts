@@ -5,7 +5,7 @@ test('host editor, mobile teams, buzzer judging, board transition, and Final Jeo
   const errors: string[] = []; host.on('pageerror', e => errors.push(e.message));
   await fs.mkdir('artifacts', { recursive: true });
   await host.goto('/');
-  await expect(host.getByRole('heading', { name: /A little knowledge/ })).toBeVisible();
+  await expect(host.getByRole('heading', { name: /Team Jeopardy/ })).toBeVisible();
   await host.screenshot({ path: 'artifacts/home-desktop.png', fullPage: true });
   await host.getByRole('button', { name: 'Host a game' }).click();
   await host.getByLabel('Game name', { exact: true }).fill('The Friday Night Club');
@@ -72,10 +72,25 @@ test('host editor, mobile teams, buzzer judging, board transition, and Final Jeo
   await host.getByRole('button', { name: 'Lock wagers & reveal clue' }).click(); await host.getByRole('button', { name: 'Lock wagers and start' }).click();
   await grace.getByLabel('Your team’s answer').fill('Africa'); await grace.getByRole('button', { name: 'Submit answer' }).click();
   await host.getByRole('button', { name: 'Lock answers early' }).click();
+  const stream = await browser.newPage();
+  await stream.goto((await host.getByRole('link', { name: 'Open streamed board' }).getAttribute('href'))!);
+  await host.locator('.final-team').nth(1).getByRole('button', { name: 'Show team', exact: true }).click();
+  await expect(stream.locator('.final-team-reveal h1')).toHaveText('The Wildcards');
+  await expect(stream.locator('.final-reveal-value').first()).not.toContainText('Africa');
+  await host.locator('.final-team').nth(1).getByRole('button', { name: 'Reveal wager', exact: true }).click();
+  await expect(stream.locator('.final-reveal-value').nth(1)).toContainText('100');
+  await host.locator('.final-team').nth(1).getByRole('button', { name: 'Reveal answer', exact: true }).click();
+  await expect(stream.locator('.final-reveal-value').first()).toContainText('Africa');
+  await stream.screenshot({ path: 'artifacts/final-team-reveal.png' });
   await host.locator('.final-team').first().getByRole('button', { name: '× Incorrect' }).click();
   await host.locator('.final-team').nth(1).getByRole('button', { name: '✓ Correct' }).click();
+  await host.getByRole('button', { name: 'Show final leaderboard' }).click();
   await expect(host.getByRole('heading', { name: /The Wildcards.*take the crown/ })).toBeVisible();
   await expect(host.locator('.rankings b').first()).toHaveText('200');
+  await expect(stream.locator('.stream-final-results h1')).toHaveText('The Wildcards');
+  await expect(stream.locator('.winner-row b')).toHaveText('200');
+  await stream.screenshot({ path: 'artifacts/final-stream-winner.png' });
+  await stream.close();
   await host.screenshot({ path: 'artifacts/final-scores.png', fullPage: true });
   await ada.getByRole('button', { name: 'Return home' }).click();
   await expect(ada.getByRole('heading', { name: 'Your saved games' })).toHaveCount(0);
@@ -87,7 +102,7 @@ test('host editor, mobile teams, buzzer judging, board transition, and Final Jeo
   await host.getByRole('button', { name: 'Delete The Friday Night Club', exact: true }).click();
   await host.getByRole('button', { name: 'Delete permanently' }).click();
   await expect(host.getByRole('heading', { name: 'Your saved games' })).toHaveCount(0);
-  await expect(grace.getByRole('heading', { name: /A little knowledge/ })).toBeVisible();
+  await expect(grace.getByRole('heading', { name: /Team Jeopardy/ })).toBeVisible();
   expect((await host.request.get(`/api/rooms/${code}`)).status()).toBe(404);
   assertNoErrors(); await aContext.close(); await bContext.close();
   function assertNoErrors() { expect(errors).toEqual([]); }
@@ -95,7 +110,7 @@ test('host editor, mobile teams, buzzer judging, board transition, and Final Jeo
 
 test('landing page fits a phone without horizontal overflow', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 }); await page.goto('/');
-  await expect(page.getByRole('heading', { name: /A little knowledge/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Team Jeopardy/ })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: 'artifacts/home-mobile.png', fullPage: true });
 });
@@ -220,11 +235,11 @@ test('custom team puzzles distribute private hints, validate answers, and show t
 
 
 
-async function introduceBoard(host: Page) { for(let i=0;i<4;i++) await host.getByRole('button',{name:'Next category',exact:true}).click(); await host.getByRole('button',{name:'Show board',exact:true}).click(); }
+async function introduceBoard(host: Page) { if(await host.getByRole('button',{name:'Continue to game',exact:true}).isVisible()) await host.getByRole('button',{name:'Continue to game',exact:true}).click(); for(let i=0;i<4;i++) await host.getByRole('button',{name:'Next category',exact:true}).click(); await host.getByRole('button',{name:'Show board',exact:true}).click(); }
 
 
 test('host kicks a lobby player and their client returns home',async({page:host,browser})=>{
  await host.goto('/');await host.getByRole('button',{name:'Host a game'}).click();await host.getByRole('button',{name:'Create game'}).click();const code=(await host.locator('.room-badge strong').textContent())!;
  const context=await browser.newContext(),player=await context.newPage();await player.goto('/?join='+code);await player.getByRole('button',{name:'Find game'}).click();await player.getByLabel('Your name').fill('Guest');await player.getByRole('button',{name:'Join game'}).click();await expect(player.getByLabel('Switch team')).toBeVisible();
- await host.getByRole('button',{name:'Teams & players'}).click();await host.getByRole('button',{name:'Kick Guest',exact:true}).click();await expect(host.locator('.managed-player')).toHaveCount(0);await expect(player.getByRole('heading',{name:/A little knowledge/})).toBeVisible();await expect(player.getByRole('alert')).toContainText('The host removed you from the lobby.');await expect(host.getByText('0 players connected',{exact:true})).toBeVisible();await context.close();
+ await host.getByRole('button',{name:'Teams & players'}).click();await host.getByRole('button',{name:'Kick Guest',exact:true}).click();await expect(host.locator('.managed-player')).toHaveCount(0);await expect(player.getByRole('heading',{name:/Team Jeopardy/})).toBeVisible();await expect(player.getByRole('alert')).toContainText('The host removed you from the lobby.');await expect(host.getByText('0 players connected',{exact:true})).toBeVisible();await context.close();
 });

@@ -1,8 +1,18 @@
-import React, { useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { View } from '../shared/model';
 export function IntroControls({ v,send,disabled }: { v:View;send:(type:string,payload?:unknown)=>Promise<boolean>;disabled:boolean }) {
  const i=v.introCategory!,category=v.boards[v.board][i];
- return <section className="question-card category-intro-host"><span className="eyebrow">BOARD {v.board+1} · CATEGORY {i+1} OF 5</span><h2>{category.title}</h2><p>{category.description || 'No category description added.'}</p><button className="primary" disabled={disabled} onClick={()=>void send('next-category')}>{i===4?'Show board':'Next category'}</button></section>;
+ const [coolingDown,setCoolingDown]=useState(false);
+ const locked=useRef(false),cooldownTimer=useRef<ReturnType<typeof setTimeout> | null>(null);
+ useEffect(()=>()=>{if(cooldownTimer.current)clearTimeout(cooldownTimer.current);},[]);
+ async function nextCategory(){
+  if(disabled || locked.current)return;
+  locked.current=true;setCoolingDown(true);
+  cooldownTimer.current=setTimeout(()=>{locked.current=false;setCoolingDown(false);cooldownTimer.current=null;},1000);
+  await send('next-category');
+ }
+
+ return <section className="question-card category-intro-host"><span className="eyebrow">BOARD {v.board+1} · CATEGORY {i+1} OF 5</span><h2>{category.title}</h2><p>{category.description || 'No category description added.'}</p><button className="primary" disabled={disabled || coolingDown} onClick={()=>void nextCategory()}>{i===4?'Show board':'Next category'}</button></section>;
 }
 export function StreamIntro({ v }: {v:View}) {
  const incoming=v.phase==='board'&&!v.current?v.introCategory??null:null;
@@ -39,5 +49,9 @@ export function StreamIntro({ v }: {v:View}) {
  },[incoming,shown,v.board]);
  if(shown===null)return null;
  const cat=v.boards[v.board][shown];
- return <div className="stream-category-intro" ref={panel} key={v.board+'-'+shown}><span>BOARD {v.board+1} · CATEGORY {shown+1} OF 5</span><h1>{cat.title}</h1><p>{cat.description}</p></div>;
+ return <div className={"stream-category-intro" + (cat.teamBased ? " team-based-intro" : "")} ref={panel} key={v.board+'-'+shown}><span>BOARD {v.board+1} · CATEGORY {shown+1} OF 5</span><h1>{cat.title}</h1><p>{cat.description}</p></div>;
+}
+
+export function GameInstructions() {
+ return <div className="game-instructions"><h2>Rules</h2><ol><li><strong>Everyone gets a turn</strong><p>One player from each team is selected for each question. Every teammate gets a fair chance before anyone is selected again.</p></li><li><strong>10 seconds to answer</strong><p>Only the selected players can buzz during the first 10 seconds. After the countdown, the question opens to everyone eligible to answer.</p></li><li><strong>No talking during the countdown</strong><p>Other team members must stay silent during the 10-second countdown.</p></li></ol></div>;
 }

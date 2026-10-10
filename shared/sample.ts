@@ -1,3 +1,5 @@
+import { sampleBombLevels } from './sample-bombs.js';
+import { sampleImage } from './sample-image.js';
 import { samplePuzzle } from './puzzles.js';
 import type { Content } from './model.js';
 const packs: [string, [string, string][]][] = [
@@ -21,11 +23,18 @@ export function allModesSampleContent(): Content {
   const content = sampleContent();
   content.name = 'Qoobee All Modes Collection';
   for (const board of content.boards) for (const category of board) category.description = 'Test your team’s knowledge of ' + category.title.toLowerCase() + '.';
-  content.boards[0][4] = { title: 'Team Challenges', description: 'Race the clock, share private clues, defuse wires, crack codes, and put events in order.', clues: [
+  content.boards[0][4] = { title: 'Team Challenges', teamBased: true, description: 'Race the clock, share private clues, defuse wires, crack codes, and put events in order.', clues: [
     { prompt: 'Open the practice link, return here, and press Finished. This sample demonstrates server-timed completion.', answer: '', used: false, kind: 'group', groupMode: 'time', linkLabel: 'Timed activity', link: 'https://example.com' },
     { prompt: 'Count the letters in QOOBEE QUESTIONS and submit your score. The host awards team points after reviewing results.', answer: '', used: false, kind: 'group', groupMode: 'score', scoreOrder: 'higher', linkLabel: 'Scored activity', link: 'https://example.com' },
     ...(['bomb', 'code', 'timeline'] as const).map(type => ({ prompt: samplePuzzle(type).message, answer: '', used: false, kind: 'group' as const, groupMode: 'time' as const, linkLabel: type === 'bomb' ? 'Bomb defusal' : type === 'code' ? 'Codebreakers' : 'Timelines', puzzle: samplePuzzle(type) }))
   ] };
+  // Keep the other activity modes available on board two.
+  const activities = content.boards[0][4].clues;
+  content.boards[1][3] = { title: 'Team Activities', teamBased: true, description: 'Race the clock, compare scores, crack codes, and put events in order.', clues: [activities[0], activities[1], activities[3], activities[4], { ...activities[1], linkLabel: 'Fewest attempts', scoreOrder: 'lower', prompt: 'Submit your attempt count from 1 to 6. Fewer attempts rank higher; the host awards team points.' }] };
+  content.boards[0][4] = { title: 'Team Challenges', teamBased: true, description: 'Five bomb modules, from beginner to expert. Combine your private clues and cut every wire in order.', clues: sampleBombLevels().map(puzzle => ({ prompt: puzzle.message, answer: '', used: false, kind: 'group', groupMode: 'time', linkLabel: 'Bomb defusal', puzzle })) };
+  content.boards[0][1].clues[3].boost = true;
+  content.boards[0][1].clues[4] = { prompt: 'How many triangles are shown in this image?', answer: '3 / Three', used: false, image: sampleImage, imageAlt: 'Three gold triangles on a blue background' };
+  content.boards[1][2].clues[4] = { prompt: 'Open the practice link and submit a number from 1 to 6 as your attempt count. Fewer attempts rank higher. The host chooses which team receives points.', answer: '', used: false, kind: 'group', groupMode: 'score', scoreOrder: 'lower', linkLabel: 'Fewest attempts', link: 'https://example.com' };
   content.boards[1][4].clues[4].boost = true;
   return content;
 }

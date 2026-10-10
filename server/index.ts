@@ -8,7 +8,8 @@ import { z } from 'zod';
 import { DiskStore, lockDirectory, validateGame } from './storage.js';
 import { advanceTimers, applyCommand, fillMissingRepresentatives, authenticate, hash, newGame, pause, publicView, token } from './game.js';
 import type { Actor, Command, Game } from '../shared/model.js';
-import { allModesSampleContent } from '../shared/sample.js';
+import { readFile } from 'node:fs/promises';
+import { contentSchema } from '../shared/model.js';
 import { allowedOrigins, corsMiddleware } from './origins.js';
 import { joinPlayer } from './join.js';
 
@@ -95,7 +96,7 @@ app.delete('/api/games/:id', async (req, res) => {
   });
   res.json({ ok: true });
 });
-app.get('/api/games/:id/sample-content', (req, res) => { host(req); res.json(allModesSampleContent()); });
+app.get('/api/games/:id/sample-content', async (req, res) => { host(req); const json = await readFile(new URL('../public/all-features-sample.json', import.meta.url), 'utf8'); res.json(contentSchema.parse(JSON.parse(json))); });
 app.get('/api/games/:id/backup', async (req, res) => {
   const r = host(req); const backup = await enqueue(r, async () => { const next = structuredClone(r.game); pause(next, performance.now(), 'Restored from a downloaded backup. Reassign players, then resume.'); next.hostHash = ''; next.processed = {}; for (const p of next.players) p.tokenHash = ''; return next; });
   res.setHeader('Content-Disposition', `attachment; filename="jeopardy-${r.game.code}-backup.json"`); res.json({ exportVersion: 1, game: backup });

@@ -45,7 +45,7 @@ test('Pages subpath works with a separate backend, private API requests, player 
   expect(rejected.status()).toBe(403);
   await page.getByRole('button', { name: 'Return home' }).click();
   await expect(page).toHaveURL('http://127.0.0.1:3201/quiz/');
-  await page.reload(); await expect(page.getByRole('heading', { name: /A little knowledge/ })).toBeVisible();
+  await page.reload(); await expect(page.getByRole('heading', { name: /Team Jeopardy/ })).toBeVisible();
   await page.getByRole('button', { name: 'Delete Pages game', exact: true }).click();
   await page.getByRole('button', { name: 'Delete permanently' }).click();
   await expect(page.getByRole('heading', { name: 'Your saved games' })).toHaveCount(0);

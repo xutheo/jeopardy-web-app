@@ -1,3 +1,4 @@
+import { gameSchema } from '../shared/model';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -96,7 +97,7 @@ test('Final Jeopardy validates wagers, keeps them private, times out and applies
   f.command('judge-final', { teamId: g.teams[0].id, correct: true }, 32000);
   assert.equal(g.teams[0].score, 900);
   assert.throws(() => f.command('judge-final', { teamId: g.teams[0].id, correct: true }, 32000), /already judged/);
-  f.command('judge-final', { teamId: g.teams[1].id, correct: false }, 33000); assert.equal(g.phase, 'finished');
+  f.command('judge-final', { teamId: g.teams[1].id, correct: false }, 33000); assert.equal(g.phase, 'final-judge'); f.command('finish-final'); assert.equal(g.phase, 'finished');
 });
 test('recovery pause preserves an accepted buzz and representative rotation', () => {
   const f = fixture(); open(f); f.command('buzz', { attemptId: f.g.current!.id }, 5000, representative(f.g));
@@ -322,4 +323,48 @@ test('host can kick lobby players and remove captain and rotation references',()
  assert.throws(()=>command('kick-player',{playerId:victim.id},0,{role:'player',playerId:g.players[1].id}),/Only the host/);
  command('kick-player',{playerId:victim.id});assert.ok(!g.players.some(p=>p.id===victim.id));assert.deepEqual(team.queue,[]);assert.equal(team.last,null);assert.equal(team.captain,g.players.find(p=>p.teamId===team.id)!.id);
  command('start');assert.throws(()=>command('kick-player',{playerId:g.players[0].id}),/before the game starts/);
+});
+
+test('final reveals are independent, host-controlled, persisted, and scoring waits for an explicit finale', () => {
+  const f = fixture(1), { g, command, online } = f;
+  g.phase = 'final-judge';
+  for (const t of g.teams) g.finalEntries[t.id] = { score: t.score, wager: 700, answer: 'Secret answer', submitted: true, judged: false, correct: null };
+  const first = g.teams[0].id, second = g.teams[1].id;
+  const display = () => publicView(g, { role: 'display' }, online, 0, null);
+  assert.equal(display().finalEntries[second].answer, '');
+  command('present-final', { teamId: second, field: 'wager' });
+  assert.equal(display().finalPresentation?.teamId, second);
+  assert.equal(display().finalEntries[second].wager, 700);
+  assert.equal(display().finalEntries[second].answer, '');
+  assert.equal(display().finalEntries[first].wager, null);
+  command('present-final', { teamId: first, field: 'answer' });
+  assert.equal(display().finalEntries[first].answer, 'Secret answer');
+  assert.equal(display().finalEntries[first].wager, null);
+  assert.throws(() => command('present-final', { teamId: first, field: 'wager' }, 0, { role: 'player', playerId: g.players[0].id }), /Only the host/);
+  assert.throws(() => command('finish-final'), /Judge every team/);
+  command('judge-final', { teamId: first, correct: false });
+  assert.equal(g.teams[0].score, -700);
+  assert.equal(display().finalEntries[first].wager, null);
+  command('judge-final', { teamId: second, correct: true });
+  assert.equal(g.teams[1].score, 700);
+  assert.equal(g.phase, 'final-judge');
+  assert.deepEqual(gameSchema.parse(JSON.parse(JSON.stringify(g))).finalPresentation, g.finalPresentation);
+  command('finish-final');
+  assert.equal(g.phase, 'finished');
+  command('reset-game', { confirm: true });
+  assert.equal(g.finalPresentation, undefined);
+});
+
+test('instructions start visible and only the host can toggle them between questions', () => {
+  const f = fixture(1);
+  assert.equal(f.g.instructionsVisible, true);
+  assert.equal(publicView(f.g, { role: 'display' }, f.online, 0, null).instructionsVisible, true);
+  assert.throws(() => f.command('show-instructions', { visible: false }, 0, { role: 'player', playerId: f.g.players[0].id }), /Only the host/);
+  f.command('show-instructions', { visible: false });
+  assert.equal(f.g.introCategory, 0);
+  f.command('show-instructions', { visible: true });
+  assert.equal(gameSchema.parse(f.g).instructionsVisible, true);
+  f.command('show-instructions', { visible: false });
+  open(f);
+  assert.throws(() => f.command('show-instructions', { visible: true }), /between questions/);
 });
