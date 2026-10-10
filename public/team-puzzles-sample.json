@@ -1,0 +1,384 @@
+{
+  "name": "Qoobee Team Puzzles",
+  "boards": [
+    [
+      {
+        "title": "Team Puzzles",
+        "clues": [
+          {
+            "prompt": "Cut all four wires in the correct order.",
+            "answer": "Paris",
+            "used": false,
+            "kind": "group",
+            "linkLabel": "Bomb defusal",
+            "groupMode": "time",
+            "boost": false,
+            "puzzle": {
+              "type": "bomb",
+              "message": "Cut all four wires in the correct order.",
+              "hints": [
+                "The circle is cut first.",
+                "The square follows the circle.",
+                "The star comes immediately before the triangle.",
+                "The triangle is last."
+              ],
+              "items": [
+                "Red ★",
+                "Blue ●",
+                "Yellow ▲",
+                "Green ■"
+              ],
+              "solution": [
+                "Blue ●",
+                "Green ■",
+                "Red ★",
+                "Yellow ▲"
+              ],
+              "answers": []
+            }
+          },
+          {
+            "prompt": "H V R U — What four-letter word is hidden here?",
+            "answer": "Pacific Ocean",
+            "used": false,
+            "kind": "group",
+            "linkLabel": "Codebreakers",
+            "groupMode": "time",
+            "boost": false,
+            "puzzle": {
+              "type": "code",
+              "message": "H V R U — What four-letter word is hidden here?",
+              "hints": [
+                "Each letter was shifted forward by the same amount.",
+                "The shift is the number of sides on a triangle.",
+                "Read the encrypted message backward before decoding.",
+                "The answer grows in a garden."
+              ],
+              "items": [],
+              "solution": [],
+              "answers": [
+                "ROSE"
+              ]
+            }
+          },
+          {
+            "prompt": "Arrange these events from earliest to latest.",
+            "answer": "Peru",
+            "used": false,
+            "kind": "group",
+            "linkLabel": "Timelines",
+            "groupMode": "time",
+            "boost": false,
+            "puzzle": {
+              "type": "timeline",
+              "message": "Arrange these events from earliest to latest.",
+              "hints": [
+                "The Wright brothers flew in 1903.",
+                "Apollo 11 landed in 1969.",
+                "Tim Berners-Lee proposed the Web in 1989."
+              ],
+              "items": [
+                "First powered flight",
+                "Moon landing",
+                "World Wide Web proposed"
+              ],
+              "solution": [
+                "First powered flight",
+                "Moon landing",
+                "World Wide Web proposed"
+              ],
+              "answers": []
+            }
+          },
+          {
+            "prompt": "This river flows through Cairo.",
+            "answer": "The Nile",
+            "used": false
+          },
+          {
+            "prompt": "This country has the cities of Wellington and Auckland.",
+            "answer": "New Zealand",
+            "used": false
+          }
+        ]
+      },
+      {
+        "title": "Science Lab",
+        "clues": [
+          {
+            "prompt": "Plants absorb this gas during photosynthesis.",
+            "answer": "Carbon dioxide",
+            "used": false
+          },
+          {
+            "prompt": "This planet is known as the Red Planet.",
+            "answer": "Mars",
+            "used": false
+          },
+          {
+            "prompt": "This force keeps planets in orbit around the Sun.",
+            "answer": "Gravity",
+            "used": false
+          },
+          {
+            "prompt": "The chemical symbol Au represents this element.",
+            "answer": "Gold",
+            "used": false
+          },
+          {
+            "prompt": "This organelle is often called the powerhouse of the cell.",
+            "answer": "Mitochondrion / mitochondria",
+            "used": false
+          }
+        ]
+      },
+      {
+        "title": "Page Turners",
+        "clues": [
+          {
+            "prompt": "In a fairy tale, this girl leaves behind a glass slipper.",
+            "answer": "Cinderella",
+            "used": false
+          },
+          {
+            "prompt": "This author wrote the Harry Potter books.",
+            "answer": "J. K. Rowling",
+            "used": false
+          },
+          {
+            "prompt": "This detective lives at 221B Baker Street.",
+            "answer": "Sherlock Holmes",
+            "used": false
+          },
+          {
+            "prompt": "This George Orwell novel features Big Brother.",
+            "answer": "Nineteen Eighty-Four / 1984",
+            "used": false
+          },
+          {
+            "prompt": "This author wrote Pride and Prejudice.",
+            "answer": "Jane Austen",
+            "used": false
+          }
+        ]
+      },
+      {
+        "title": "At the Movies",
+        "clues": [
+          {
+            "prompt": "This cowboy toy is best friends with Buzz Lightyear.",
+            "answer": "Woody",
+            "used": false
+          },
+          {
+            "prompt": "This 1997 film features Jack and Rose aboard a ship.",
+            "answer": "Titanic",
+            "used": false
+          },
+          {
+            "prompt": "In Star Wars, this small green Jedi trains Luke on Dagobah.",
+            "answer": "Yoda",
+            "used": false
+          },
+          {
+            "prompt": "This fictional African country is the home of Black Panther.",
+            "answer": "Wakanda",
+            "used": false
+          },
+          {
+            "prompt": "This director made Jaws and Jurassic Park.",
+            "answer": "Steven Spielberg",
+            "used": false
+          }
+        ]
+      },
+      {
+        "title": "A Little of Everything",
+        "clues": [
+          {
+            "prompt": "A standard chessboard has this many squares.",
+            "answer": "64",
+            "used": false
+          },
+          {
+            "prompt": "This instrument has 88 keys in its standard modern form.",
+            "answer": "Piano",
+            "used": false
+          },
+          {
+            "prompt": "This sport uses the terms birdie, eagle, and bogey.",
+            "answer": "Golf",
+            "used": false
+          },
+          {
+            "prompt": "This is the main ingredient in traditional hummus.",
+            "answer": "Chickpeas",
+            "used": false
+          },
+          {
+            "prompt": "This Roman numeral represents 1,000.",
+            "answer": "M",
+            "used": false
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "title": "History Class",
+        "clues": [
+          {
+            "prompt": "This civilization built the pyramids at Giza.",
+            "answer": "Ancient Egyptians",
+            "used": false
+          },
+          {
+            "prompt": "The Berlin Wall fell in this year.",
+            "answer": "1989",
+            "used": false
+          },
+          {
+            "prompt": "This queen ruled England during the defeat of the Spanish Armada in 1588.",
+            "answer": "Elizabeth I",
+            "used": false
+          },
+          {
+            "prompt": "This document was sealed by King John in 1215.",
+            "answer": "Magna Carta",
+            "used": false
+          },
+          {
+            "prompt": "This empire was ruled from its capital at Tenochtitlan.",
+            "answer": "The Aztec Empire",
+            "used": false
+          }
+        ]
+      },
+      {
+        "title": "Natural Wonders",
+        "clues": [
+          {
+            "prompt": "This is the tallest living land animal.",
+            "answer": "Giraffe",
+            "used": false
+          },
+          {
+            "prompt": "This is the largest living species of shark.",
+            "answer": "Whale shark",
+            "used": false
+          },
+          {
+            "prompt": "This process turns a caterpillar into a butterfly.",
+            "answer": "Metamorphosis",
+            "used": false
+          },
+          {
+            "prompt": "This biome is characterized by permafrost.",
+            "answer": "Tundra",
+            "used": false
+          },
+          {
+            "prompt": "This is the deepest known oceanic trench.",
+            "answer": "Mariana Trench",
+            "used": false
+          }
+        ]
+      },
+      {
+        "title": "Word Play",
+        "clues": [
+          {
+            "prompt": "This punctuation mark ends a direct question.",
+            "answer": "Question mark",
+            "used": false
+          },
+          {
+            "prompt": "This term describes a word that reads the same forward and backward.",
+            "answer": "Palindrome",
+            "used": false
+          },
+          {
+            "prompt": "These words sound alike but have different meanings, such as sea and see.",
+            "answer": "Homophones",
+            "used": false
+          },
+          {
+            "prompt": "This figure of speech uses like or as to compare two things.",
+            "answer": "Simile",
+            "used": false
+          },
+          {
+            "prompt": "This term describes a word formed from initial letters, such as NASA.",
+            "answer": "Acronym",
+            "used": false
+          }
+        ]
+      },
+      {
+        "title": "On the Menu",
+        "clues": [
+          {
+            "prompt": "This Italian dish typically has a crust, tomato sauce, and cheese.",
+            "answer": "Pizza",
+            "used": false
+          },
+          {
+            "prompt": "This spice gives many curries a yellow color.",
+            "answer": "Turmeric",
+            "used": false
+          },
+          {
+            "prompt": "Traditional Japanese miso paste is made primarily from these beans.",
+            "answer": "Soybeans",
+            "used": false
+          },
+          {
+            "prompt": "This French dessert has a caramelized sugar crust over custard.",
+            "answer": "Crème brûlée",
+            "used": false
+          },
+          {
+            "prompt": "This Spanish rice dish is traditionally associated with Valencia.",
+            "answer": "Paella",
+            "used": false
+          }
+        ]
+      },
+      {
+        "title": "Numbers Game",
+        "clues": [
+          {
+            "prompt": "This is the only even prime number.",
+            "answer": "2",
+            "used": false
+          },
+          {
+            "prompt": "A triangle’s interior angles add up to this many degrees in Euclidean geometry.",
+            "answer": "180",
+            "used": false
+          },
+          {
+            "prompt": "This is the square root of 144.",
+            "answer": "12",
+            "used": false
+          },
+          {
+            "prompt": "This mathematical constant is the ratio of a circle’s circumference to its diameter.",
+            "answer": "Pi",
+            "used": false
+          },
+          {
+            "prompt": "This is the next number in the sequence 1, 1, 2, 3, 5, 8.",
+            "answer": "13",
+            "used": false
+          }
+        ]
+      }
+    ]
+  ],
+  "final": {
+    "category": "World Geography",
+    "prompt": "This is the only continent that lies in all four hemispheres: Northern, Southern, Eastern, and Western.",
+    "answer": "Africa"
+  }
+}

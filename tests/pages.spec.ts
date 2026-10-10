@@ -1,0 +1,54 @@
+import { test, expect } from '@playwright/test';
+
+test('Pages subpath works with a separate backend, private API requests, player joins and display links', async ({ page, browser }) => {
+  await page.goto('/quiz/');
+  await page.getByRole('button', { name: 'Host a game' }).click();
+  await page.getByLabel('Game name', { exact: true }).fill('Pages game');
+  await page.getByRole('button', { name: 'Create game' }).click();
+  await expect(page.getByRole('heading', { name: 'Pages game' })).toBeVisible();
+  await expect(page).toHaveURL(/\/quiz\/\?game=/);
+  const code = await page.locator('.room-badge strong').textContent();
+  await page.getByRole('button', { name: 'Edit game boards' }).click();
+  await page.getByRole('button', { name: 'Use sample questions' }).click();
+  await page.getByRole('button', { name: 'Use sample collection' }).click();
+  await expect(page.getByText('50/50 clues ready', { exact: false })).toBeVisible();
+  await expect(page.getByText('All changes saved', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Save & close' }).click();
+  await page.getByRole('button', { name: 'Game tools' }).click();
+  const display = page.getByRole('link', { name: 'Open shared display' });
+  await expect(display).toHaveAttribute('href', /http:\/\/127.0.0.1:3201\/quiz\/\?game=.*display=1/);
+  const displayUrl = (await display.getAttribute('href'))!;
+  await page.getByRole('button', { name: 'Close dialog' }).click();
+  const context = await browser.newContext();
+  const player = await context.newPage();
+  await player.goto(`http://127.0.0.1:3201/quiz/?join=${code}`);
+  await player.getByRole('button', { name: 'Find game' }).click();
+  await player.getByLabel('Your name').fill('Page');
+  await player.getByRole('button', { name: 'Join game' }).click(); await player.getByLabel('Switch team').selectOption({index:0});
+  await expect(page.locator('.player-row').filter({ hasText: 'Page' })).toBeVisible();
+  const screen = await context.newPage(); await screen.goto(displayUrl);
+  await expect(screen.getByRole('heading', { name: 'Pages game' })).toBeVisible();
+  const otherContext = await browser.newContext(); const other = await otherContext.newPage();
+  await other.goto(`http://127.0.0.1:3201/quiz/?join=${code}`);
+  await other.getByRole('button', { name: 'Find game' }).click();
+  await other.getByLabel('Your name').fill('Rival');
+  await other.getByRole('button', { name: 'Join game' }).click();
+  await expect(page.getByText('2 players connected', { exact: false })).toBeVisible();
+  await page.getByRole('button', { name: 'Let’s play' }).click(); for(let i=0;i<4;i++) await page.getByRole('button',{name:'Next category',exact:true}).click(); await page.getByRole('button',{name:'Show board',exact:true}).click();
+  await page.getByRole('button', { name: 'Around the World, 100 points', exact: true }).click();
+
+  await player.getByRole('button', { name: /BUZZ IN/ }).click();
+  await expect(page.locator('.buzz-winner h3')).toHaveText('Page');
+  await page.getByRole('button', { name: '✓ Correct', exact: true }).click();
+  await expect(player.locator('.score-card').first().locator('strong')).toHaveText('100');
+  const rejected = await page.request.fetch('http://127.0.0.1:3199/api/games', { method: 'OPTIONS', headers: { Origin: 'https://unconfigured.example' } });
+  expect(rejected.status()).toBe(403);
+  await page.getByRole('button', { name: 'Return home' }).click();
+  await expect(page).toHaveURL('http://127.0.0.1:3201/quiz/');
+  await page.reload(); await expect(page.getByRole('heading', { name: /A little knowledge/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Delete Pages game', exact: true }).click();
+  await page.getByRole('button', { name: 'Delete permanently' }).click();
+  await expect(page.getByRole('heading', { name: 'Your saved games' })).toHaveCount(0);
+  await context.close(); await otherContext.close();
+});
+

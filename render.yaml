@@ -1,0 +1,27 @@
+# Optional backend for the GitHub Pages frontend. Deploy using Render > New > Blueprint.
+# The compute instance and persistent disk are paid resources.
+services:
+  - type: web
+    name: quiz-social
+    runtime: node
+    plan: 0.5c-512mb
+    region: oregon
+    numInstances: 1
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: node --import tsx server/index.ts --production
+    healthCheckPath: /api/health
+    # Deploy between games: replacing the server pauses active rooms.
+    autoDeployTrigger: off
+    envVars:
+      - key: NODE_VERSION
+        value: 24.18.0
+      - key: NODE_ENV
+        value: production
+      - key: DATA_DIR
+        value: /var/data/jeopardy
+      - key: ALLOWED_ORIGINS
+        sync: false
+    disk:
+      name: game-saves
+      mountPath: /var/data
+      sizeGB: 1

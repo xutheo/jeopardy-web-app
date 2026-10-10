@@ -1,0 +1,325 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { applyCommand, newGame, publicView, selectRepresentatives, hash, pause, fillMissingRepresentatives } from '../server/game.js';
+import { sampleContent } from '../shared/sample.js';
+import type { Actor, Game } from '../shared/model.js';
+
+const host: Actor = { role: 'host' };
+function fixture(size = 3) {
+  const g = newGame('host-secret'); Object.assign(g, sampleContent());
+  for (let t = 0; t < 2; t++) for (let i = 0; i < size; i++) g.players.push({ id: `p${t}-${i}`, name: `Player ${t}-${i}`, teamId: g.teams[t].id, tokenHash: hash(`token${t}-${i}`), active: true, selections: 0 });
+  for (const t of g.teams) t.captain = g.players.find(p => p.teamId === t.id)!.id;
+  const online = new Set(g.players.map(p => p.id));
+  const command = (type: string, payload = {}, at = 0, actor = host, id = randomUUID()) => applyCommand(g, actor, { id, type, payload }, at, online);
+  command('start'); return { g, online, command };
+}
+function open(f: ReturnType<typeof fixture>) { f.command('open-clue', { category: 0, row: 0 }, 1000); }
+function representative(g: Game, team = 0): Actor { return { role: 'player', playerId: g.current!.representatives[g.teams[team].id] }; }
+
+test('stable rosters get one turn per cycle and no immediate cycle-boundary repeat', () => {
+  const { g, online } = fixture(5);
+  let previous: Record<string, string> = {};
+  for (let cycle = 0; cycle < 12; cycle++) {
+    const seen = new Map(g.teams.map(t => [t.id, new Set<string>()]));
+    for (let turn = 0; turn < 5; turn++) { const reps = selectRepresentatives(g, online); for (const t of g.teams) { assert.ok(!seen.get(t.id)!.has(reps[t.id])); seen.get(t.id)!.add(reps[t.id]); if (cycle > 0 && turn === 0) assert.notEqual(reps[t.id], previous[t.id]); } previous = reps; }
+  }
+  assert.ok(g.players.every(p => p.selections === 12));
+});
+test('absent players retain an owed turn and do not block connected teammates', () => {
+  const { g, online } = fixture(2); const [a, b] = g.players;
+  g.teams[0].queue = [a.id, b.id]; online.delete(a.id);
+  assert.equal(selectRepresentatives(g, online)[a.teamId], b.id);
+  assert.equal(selectRepresentatives(g, online)[a.teamId], b.id);
+  online.add(a.id); assert.equal(selectRepresentatives(g, online)[a.teamId], a.id);
+});
+test('nonrepresentatives cannot buzz before deadline, but can at the exact deadline', () => {
+  const f = fixture(); open(f); const g = f.g;
+  const p = g.players.find(p => p.teamId === g.teams[0].id && p.id !== representative(g).playerId)!;
+  assert.throws(() => f.command('buzz', { attemptId: g.current!.id }, 10999, { role: 'player', playerId: p.id }), /representing/);
+  f.command('buzz', { attemptId: g.current!.id }, 11000, { role: 'player', playerId: p.id });
+  assert.equal(g.current!.winner, p.id); assert.equal(g.current!.previous, 'open');
+});
+test('first valid buzz wins and pauses time; wrong answer resumes exact remainder and locks team', () => {
+  const f = fixture(); open(f); const g = f.g;
+  const a = representative(g), b = representative(g, 1);
+  f.command('buzz', { attemptId: g.current!.id }, 8000, a);
+  assert.equal(g.current!.remainingMs, 3000);
+  assert.throws(() => f.command('buzz', { attemptId: g.current!.id }, 8001, b), /not available/);
+  f.command('judge', { buzzId: g.current!.buzzId, correct: false }, 16000);
+  assert.equal(g.teams[0].score, -100); assert.equal(g.current!.deadline, 19000);
+  assert.throws(() => f.command('buzz', { attemptId: g.current!.id }, 17000, a), /already answered/);
+  f.command('buzz', { attemptId: g.current!.id }, 18000, b);
+  f.command('judge', { buzzId: g.current!.buzzId, correct: true }, 25000);
+  assert.equal(g.current!.state, 'resolved'); assert.equal(g.teams[1].score, 100);
+});
+test('retrying committed ruling changes score only once', () => {
+  const f = fixture(); open(f); const g = f.g;
+  f.command('buzz', { attemptId: g.current!.id }, 2000, representative(g));
+  const id = randomUUID(), payload = { buzzId: g.current!.buzzId, correct: true };
+  assert.equal(f.command('judge', payload, 3000, host, id), true);
+  assert.equal(f.command('judge', payload, 4000, host, id), false);
+  assert.equal(g.teams[0].score, 100); assert.equal(g.ledger.length, 1);
+});
+test('undo restores answer opportunity and creates a compensating ledger entry', () => {
+  const f = fixture(); open(f); const g = f.g;
+  f.command('buzz', { attemptId: g.current!.id }, 6000, representative(g)); const winner = g.current!.winner;
+  f.command('judge', { buzzId: g.current!.buzzId, correct: false }, 12000);
+  f.command('undo', {}, 14000);
+  assert.equal(g.teams[0].score, 0); assert.equal(g.current!.state, 'answering'); assert.equal(g.current!.winner, winner); assert.equal(g.current!.remainingMs, 5000); assert.equal(g.ledger.length, 2);
+});
+test('pause and resume preserve timer; unauthorized host commands fail', () => {
+  const f = fixture(); open(f); const g = f.g;
+  assert.throws(() => f.command('close-clue', {}, 1000, representative(g)), /Only the host/);
+  f.command('pause', {}, 9000); assert.equal(g.current!.remainingMs, 2000);
+  assert.throws(() => f.command('buzz', { attemptId: g.current!.id }, 10000, representative(g)), /paused/);
+  f.command('resume', {}, 100000); assert.equal(g.current!.deadline, 102000);
+});
+test('player snapshots omit private answers, credentials, rotation queues, and command history', () => {
+  const f = fixture(); open(f); const view = publicView(f.g, representative(f.g), f.online, 5000, null);
+  assert.equal(view.current!.remainingMs, 6000);
+  assert.equal(view.boards[0][0].clues[0].answer, ''); assert.equal(view.boards[0][0].clues[1].prompt, ''); assert.equal(view.final.answer, '');
+  const json = JSON.stringify(view); assert.ok(!json.includes('tokenHash')); assert.ok(!json.includes('hostHash')); assert.ok(!json.includes('processed')); assert.ok(!json.includes('queue'));
+});
+test('Final Jeopardy validates wagers, keeps them private, times out and applies each score once', () => {
+  const f = fixture(1), g = f.g;
+  f.command('adjust-score', { teamId: g.teams[0].id, amount: 500, reason: 'Fixture' });
+  f.command('advance-board', { skip: true }); f.command('advance-board', { skip: true });
+  const a: Actor = { role: 'player', playerId: g.teams[0].captain! }, b: Actor = { role: 'player', playerId: g.teams[1].captain! };
+  assert.throws(() => f.command('wager', { amount: 2001 }, 0, a), /Wager/);
+  f.command('wager', { amount: 2000 }, 0, a); assert.equal(g.finalEntries[g.teams[0].id].wager, 2000);
+  f.command('wager', { amount: 400 }, 0, a); f.command('wager', { amount: 0 }, 0, b);
+  assert.equal(publicView(g, b, f.online, 0, null).finalEntries[g.teams[0].id].wager, null);
+  assert.equal(publicView(g, host, f.online, 0, null).finalEntries[g.teams[0].id].wager, null);
+  f.command('lock-wagers', {}, 1000); f.command('final-answer', { answer: 'Africa' }, 10000, a);
+  assert.throws(() => f.command('final-answer', { answer: 'Late' }, 31000, b), /Only the captain/);
+  f.command('judge-final', { teamId: g.teams[0].id, correct: true }, 32000);
+  assert.equal(g.teams[0].score, 900);
+  assert.throws(() => f.command('judge-final', { teamId: g.teams[0].id, correct: true }, 32000), /already judged/);
+  f.command('judge-final', { teamId: g.teams[1].id, correct: false }, 33000); assert.equal(g.phase, 'finished');
+});
+test('recovery pause preserves an accepted buzz and representative rotation', () => {
+  const f = fixture(); open(f); f.command('buzz', { attemptId: f.g.current!.id }, 5000, representative(f.g));
+  const before = structuredClone(f.g.current); pause(f.g, 500000, 'Recovery');
+  assert.deepEqual(f.g.current, before); assert.equal(f.g.paused, true);
+});
+
+test('Qoobee Boost keeps the selected representative, hides images until wager, and ends on either ruling', () => {
+  const f = fixture(), { g, command } = f;
+  Object.assign(g.boards[0][0].clues[0], { boost: true, image: 'data:image/png;base64,aGVsbG8=' });
+  command('open-clue', { category: 0, row: 0 });
+  const selected = g.current!.representatives[g.teams[0].id], counts = g.players.map(p => p.selections);
+  const spectator: Actor = { role: 'display' };
+  assert.equal(publicView(g, spectator, f.online, 0, null).boards[0][0].clues[0].image, undefined);
+  assert.equal(publicView(g, spectator, f.online, 0, null).boards[0][0].clues[0].prompt, '');
+  assert.throws(() => command('start-timer'), /not ready/);
+  assert.throws(() => command('start-boost', { attemptId: g.current!.id, teamId: g.teams[0].id, wager: 1001 }), /Wager/);
+  command('start-boost', { attemptId: g.current!.id, teamId: g.teams[0].id, wager: 500 });
+  assert.equal(g.current!.winner, selected); assert.deepEqual(g.players.map(p => p.selections), counts);
+  assert.ok(publicView(g, spectator, f.online, 0, null).boards[0][0].clues[0].image);
+  command('judge', { buzzId: g.current!.buzzId, correct: false });
+  assert.equal(g.teams[0].score, -500); assert.equal(g.current!.state, 'resolved');
+  command('undo'); assert.equal(g.current!.winner, selected); assert.equal(g.teams[0].score, 0);
+  command('judge', { buzzId: g.current!.buzzId, correct: true }); assert.equal(g.teams[0].score, 500);
+});
+
+test('group completion uses server elapsed time excluding pauses; submissions and awards are protected', () => {
+  const f = fixture(), { g, command } = f;
+  Object.assign(g.boards[0][0].clues[0], { kind: 'group', link: 'https://example.com/puzzle', groupMode: 'time' });
+  command('open-clue', { category: 0, row: 0 }); const attemptId = g.current!.id, player: Actor = { role: 'player', playerId: g.players[0].id };
+  assert.ok(g.players.every(p => p.selections === 0));
+  assert.equal(publicView(g, player, f.online, 0, null).boards[0][0].clues[0].link, '');
+  command('start-group', { attemptId }, 1000);
+  assert.equal(publicView(g, player, f.online, 1000, null).boards[0][0].clues[0].link, 'https://example.com/puzzle');
+  command('pause', {}, 4000); command('resume', {}, 14000);
+  command('group-done', { attemptId, seconds: 0 }, 17000, player);
+  assert.equal(g.current!.group!.submissions[player.playerId!].seconds, 6);
+  assert.throws(() => command('group-done', { attemptId }, 18000, player), /already/);
+  assert.deepEqual(publicView(g, { role: 'display' }, f.online, 18000, null).current!.group!.submissions, {});
+  assert.throws(() => command('award-group', { attemptId, playerId: player.playerId, points: 200, reason: 'Winner' }, 18000, player), /Only the host/);
+  command('lock-group', { attemptId }, 18000);
+  assert.equal(Object.keys(publicView(g, { role: 'display' }, f.online, 18000, null).current!.group!.submissions).length, 1);
+  assert.deepEqual(publicView(g, { role: 'player', playerId: g.players[1].id }, f.online, 18000, null).current!.group!.submissions, {});
+  const award = { attemptId, teamId: g.teams[0].id, points: 200, reason: 'Winner' };
+  command('award-group', award, 19000); assert.equal(g.teams[0].score, 200);
+  assert.throws(() => command('award-group', award, 20000), /already/);
+  assert.throws(() => command('group-done', { attemptId }, 20000, { role: 'player', playerId: g.players[1].id }), /not accepting/);
+});
+
+test('group score is free text, editable until review and not automatically scored', () => {
+  const { g, command } = fixture(); Object.assign(g.boards[0][0].clues[0], { kind: 'group', groupMode: 'score', link: 'https://example.com/puzzle' });
+  command('open-clue', { category: 0, row: 0 }); const attemptId = g.current!.id, actor: Actor = { role: 'player', playerId: g.players[0].id };
+  command('start-group', { attemptId });
+  command('submit-group', { attemptId, score: '4/6' }, 1000, actor);
+  command('submit-group', { attemptId, score: '3/6' }, 2000, actor);
+  assert.equal(g.current!.group!.submissions[actor.playerId!].score, '3/6'); assert.equal(g.teams[0].score, 0);
+  assert.throws(() => command('group-done', { attemptId }, 2000, actor), /not accepting/);
+  command('lock-group', { attemptId }, 3000);
+  assert.throws(() => command('submit-group', { attemptId, score: '1/6' }, 4000, actor), /closed/);
+});
+
+test('automatic countdown, answer reveal and board progression preserve final answer review', () => {
+  const f = fixture(1), { g, command } = f;
+  command('open-clue', { category: 0, row: 0 }, 2500);
+  assert.equal(g.current!.state, 'restricted'); assert.equal(g.current!.deadline, 12500);
+  command('buzz', { attemptId: g.current!.id }, 3000, representative(g));
+  command('judge', { buzzId: g.current!.buzzId, correct: true }, 3500);
+  assert.equal(g.current!.revealedAnswer, true);
+  for (const cat of g.boards[0]) for (const q of cat.clues) q.used = true;
+  assert.equal(g.board, 0); // The answer remains visible until dismissed.
+  command('return-board', {}, 4000); assert.equal(g.board, 1); assert.equal(g.current, null);
+  command('open-clue', { category: 0, row: 0 }, 5000); command('close-clue', {}, 5500);
+  for (const cat of g.boards[1]) for (const q of cat.clues) q.used = true;
+  command('return-board', {}, 6000); assert.equal(g.phase, 'final-wager'); assert.equal(Object.keys(g.finalEntries).length, 2);
+});
+
+test('reconnecting fills an empty representative slot once and preserves already selected players', () => {
+  const f = fixture(1), { g, online, command } = f;
+  const returning = g.players[1]; online.delete(returning.id);
+  command('open-clue', { category: 0, row: 0 }, 1000);
+  assert.equal(g.current!.representatives[returning.teamId], undefined);
+  const original = g.current!.representatives[g.teams[0].id]; online.add(returning.id);
+  assert.equal(fillMissingRepresentatives(g, online), true);
+  assert.equal(g.current!.representatives[returning.teamId], returning.id);
+  assert.equal(g.current!.representatives[g.teams[0].id], original);
+  assert.equal(fillMissingRepresentatives(g, online), false); assert.equal(returning.selections, 1);
+  command('buzz', { attemptId: g.current!.id }, 2000, { role: 'player', playerId: returning.id });
+  assert.equal(g.current!.winner, returning.id);
+});
+
+test('group awards can go directly to a team and cannot be repeated for a teammate', () => {
+  const { g, command } = fixture(); Object.assign(g.boards[0][0].clues[0], { kind: 'group', groupMode: 'time', link: 'https://example.com' });
+  command('open-clue', { category: 0, row: 0 }); const attemptId = g.current!.id;
+  command('start-group', { attemptId }); command('lock-group', { attemptId }, 2000);
+  command('award-group', { attemptId, teamId: g.teams[1].id, points: 300, reason: 'Winner' }, 3000);
+  assert.equal(g.teams[1].score, 300); assert.equal(g.ledger.at(-1)!.playerId, undefined);
+  assert.throws(() => command('award-group', { attemptId, teamId: g.teams[1].id, points: 300, reason: 'Winner' }, 4000), /already/);
+});
+
+test('Boost allows the higher of 1000 or the team score and subtracts the full lost wager', () => {
+  for (const [starting, wager, ending] of [[100, 1000, -900], [2000, 2000, 0], [-200, 1000, -1200]]) {
+    const { g, command } = fixture(1);
+    command('adjust-score', { teamId: g.teams[0].id, amount: starting, reason: 'Starting score' });
+    g.boards[0][0].clues[0].boost = true;
+    command('open-clue', { category: 0, row: 0 });
+    const payload = { attemptId: g.current!.id, teamId: g.teams[0].id, wager };
+    assert.throws(() => command('start-boost', { ...payload, wager: wager + 1 }), /Wager/);
+    command('start-boost', payload);
+    command('judge', { buzzId: g.current!.buzzId, correct: false });
+    assert.equal(g.teams[0].score, ending);
+  }
+});
+
+test('removing a lobby team randomly redistributes its players and preserves a valid roster', () => {
+  const f = fixture(3), { g, command } = f; g.phase = 'lobby';
+  command('add-team', { name: 'Remove me' }); const removed = g.teams[2];
+  for (const p of g.players) p.teamId = removed.id;
+  for (const t of g.teams) { t.queue = []; t.captain = null; }
+  command('remove-team', { teamId: removed.id });
+  assert.equal(g.teams.length, 2); assert.ok(g.players.every(p => g.teams.some(t => t.id === p.teamId)));
+  assert.throws(() => command('remove-team', { teamId: g.teams[0].id }), /two teams/);
+  g.phase = 'board'; assert.throws(() => command('remove-team', { teamId: g.teams[0].id }), /before/);
+});
+
+test('empty teams disappear from live views and cannot block Final Jeopardy', () => {
+  const { g, command, online } = fixture(1); g.phase = 'lobby'; command('add-team', { name: 'Empty' });
+  assert.equal(publicView(g, host, online, 0, null).teams.length, 3);
+  command('start'); assert.equal(publicView(g, host, online, 0, null).teams.length, 2);
+  assert.equal(publicView(g, { role: 'display' }, online, 0, null).teams.length, 2);
+  command('advance-board', { skip: true }); command('advance-board', { skip: true });
+  assert.equal(g.finalEntries[g.teams[2].id].wager, 0); assert.equal(g.finalEntries[g.teams[2].id].judged, true);
+});
+
+test('unfinish activity restores scoring review without clearing results or duplicating awards', () => {
+  const { g, command } = fixture(1); Object.assign(g.boards[0][0].clues[0], { kind: 'group', groupMode: 'time', link: 'https://example.com' });
+  command('open-clue', { category: 0, row: 0 }); const attemptId = g.current!.id;
+  command('start-group', { attemptId }); command('group-done', { attemptId }, 2000, { role: 'player', playerId: g.players[0].id });
+  command('lock-group', { attemptId }, 3000);
+  const award = { attemptId, teamId: g.teams[0].id, points: 100, reason: 'Winner' };
+  command('award-group', award, 4000); command('close-clue', {}, 5000);
+  command('unfinish-activity', { attemptId }, 6000);
+  assert.equal(g.current!.state, 'revealed'); assert.equal(g.current!.group!.status, 'review');
+  assert.equal(g.current!.group!.submissions[g.players[0].id].seconds, 2); assert.equal(g.teams[0].score, 100);
+  assert.throws(() => command('award-group', award, 7000), /already/);
+});
+
+test('closing a question reveals its answer without awarding or subtracting points', () => {
+  const { g, command, online } = fixture(1);
+  command('open-clue', { category: 0, row: 0 });
+  command('close-clue', {}, 1000);
+  assert.equal(g.current!.state, 'resolved'); assert.equal(g.current!.revealedAnswer, true);
+  assert.equal(g.current!.deadline, null); assert.equal(g.ledger.length, 0);
+  assert.equal(publicView(g, { role: 'display' }, online, 1000, null).boards[0][0].clues[0].answer, 'Paris');
+});
+
+test('selector is a participating team initially, changes on correct answers and is restored by undo', () => {
+  const { g, command } = fixture(1); const initial = g.selectorTeamId;
+  assert.ok(g.teams.some(t => t.id === initial));
+  const other = g.teams.findIndex(t => t.id !== initial);
+  command('open-clue', { category: 0, row: 0 });
+  command('buzz', { attemptId: g.current!.id }, 1000, representative(g, other));
+  command('judge', { buzzId: g.current!.buzzId, correct: true }, 2000);
+  assert.equal(g.selectorTeamId, g.teams[other].id);
+  command('undo', {}, 3000); assert.equal(g.selectorTeamId, initial);
+  command('judge', { buzzId: g.current!.buzzId, correct: false }, 4000); assert.equal(g.selectorTeamId, initial);
+});
+
+test('reset requires host confirmation, retains content and identities, clears all game progress', () => {
+  const { g, command } = fixture(1);
+  const ids = g.players.map(p => [p.id, p.teamId, p.tokenHash]); const question = g.boards[0][0].clues[0].prompt;
+  command('open-clue', { category: 0, row: 0 });
+  command('buzz', { attemptId: g.current!.id }, 1000, representative(g));
+  command('judge', { buzzId: g.current!.buzzId, correct: true }, 2000);
+  assert.throws(() => command('reset-game', { confirm: true }, 3000, { role: 'player', playerId: g.players[0].id }), /Only the host/);
+  assert.throws(() => command('reset-game', {}, 3000), /Confirm/);
+  command('pause', {}, 3000); command('reset-game', { confirm: true }, 4000);
+  assert.equal(g.phase, 'lobby'); assert.equal(g.paused, false); assert.equal(g.current, null); assert.equal(g.selectorTeamId, null);
+  assert.ok(g.teams.every(t => t.score === 0 && t.queue.length === 0 && t.last === null)); assert.equal(g.ledger.length, 0);
+  assert.ok(g.players.every(p => p.selections === 0)); assert.deepEqual(g.players.map(p => [p.id, p.teamId, p.tokenHash]), ids);
+  assert.equal(g.boards[0][0].clues[0].used, false); assert.equal(g.boards[0][0].clues[0].prompt, question);
+  command('start', {}, 5000); assert.ok(g.selectorTeamId);
+});
+
+test('players can undo only their own result while an activity remains open', () => {
+  for (const mode of ['time', 'score'] as const) {
+    const f = fixture(1), g = f.g;
+    Object.assign(g.boards[0][0].clues[0], { kind: 'group', groupMode: mode, link: 'https://example.com' });
+    open(f); const payload = { attemptId: g.current!.id }, actor: Actor = { role: 'player', playerId: g.players[0].id };
+    f.command('start-group', payload, 1000);
+    const submit = (at: number) => f.command(mode === 'time' ? 'group-done' : 'submit-group', { ...payload, score: '42' }, at, actor);
+    submit(2000); f.command('unfinish-group', payload, 3000, actor);
+    assert.equal(g.current!.group!.submissions[actor.playerId!], undefined);
+    assert.throws(() => f.command('unfinish-group', payload, 3100, actor), /No result/);
+    submit(4000); if (mode === 'time') assert.equal(g.current!.group!.submissions[actor.playerId!].seconds, 3);
+    f.command('lock-group', payload, 5000);
+    assert.throws(() => f.command('unfinish-group', payload, 6000, actor), /not accepting/);
+  }
+});
+
+test('Final wagers allow 2000 for negative scores and larger positive balances', () => {
+  for (const balance of [-100, 0, 100, 3000]) {
+    const f = fixture(1), g = f.g, team = g.teams[0];
+    f.command('adjust-score', { teamId: team.id, amount: balance, reason: 'Fixture' });
+    f.command('advance-board', { skip: true }); f.command('advance-board', { skip: true });
+    const actor: Actor = { role: 'player', playerId: team.captain! }, maximum = Math.max(2000, balance);
+    f.command('wager', { amount: maximum }, 0, actor);
+    assert.equal(g.finalEntries[team.id].wager, maximum);
+    assert.throws(() => f.command('wager', { amount: maximum + 1 }, 0, actor), /Wager/);
+  }
+});
+
+test('each board introduces five categories under host control',()=>{
+ const {g,command}=fixture(1);assert.equal(g.introCategory,0);
+ assert.throws(()=>command('next-category',{},0,{role:'player',playerId:g.players[0].id}),/Only the host/);
+ for(let i=1;i<=4;i++){command('next-category');assert.equal(g.introCategory,i);}command('next-category');assert.equal(g.introCategory,null);
+ command('advance-board',{skip:true});assert.equal(g.board,1);assert.equal(g.introCategory,0);
+ command('reset-game',{confirm:true});assert.equal(g.introCategory,null);
+});
+
+test('host can kick lobby players and remove captain and rotation references',()=>{
+ const {g,command}=fixture(2);command('reset-game',{confirm:true});const victim=g.players[0],team=g.teams.find(t=>t.id===victim.teamId)!;
+ team.captain=victim.id;team.queue=[victim.id];team.last=victim.id;
+ assert.throws(()=>command('kick-player',{playerId:victim.id},0,{role:'player',playerId:g.players[1].id}),/Only the host/);
+ command('kick-player',{playerId:victim.id});assert.ok(!g.players.some(p=>p.id===victim.id));assert.deepEqual(team.queue,[]);assert.equal(team.last,null);assert.equal(team.captain,g.players.find(p=>p.teamId===team.id)!.id);
+ command('start');assert.throws(()=>command('kick-player',{playerId:g.players[0].id}),/before the game starts/);
+});

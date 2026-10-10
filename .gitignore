@@ -1,0 +1,11 @@
+node_modules/
+.npm-cache/
+.e2e-data/
+artifacts/
+dist/
+dist-pages/
+data/
+test-results/
+playwright-report/
+*.log
+.env
