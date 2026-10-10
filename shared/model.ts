@@ -32,6 +32,7 @@ const currentSchema = z.object({
     puzzle: puzzleStateSchema.optional(), status: z.enum(['ready', 'playing', 'review']), mode: z.enum(['time', 'score']),
     elapsedMs: z.number().nonnegative(), runningSince: z.number().nullable(),
     submissions: z.record(z.object({ score: z.string().max(100).nullable(), seconds: z.number().nonnegative().nullable(), submittedAt: z.string(), revision: z.number().int().positive() })),
+    selectorBeforeAwards: z.string().nullable().optional(),
     awards: z.record(z.object({ points: z.number().int(), reason: z.string().max(200), entryId: z.string() }))
   }).optional()
 });

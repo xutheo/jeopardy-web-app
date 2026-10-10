@@ -228,3 +228,6 @@
 .stream-category-intro.team-based-intro h1,
 .stream-category-intro.team-based-intro p,
 .stream-category-intro.team-based-intro>span{color:#eeeae1}
+
+/* Highlight the selected answering player's viewport without changing layout. */
+.player-shell.active-player-screen::after{content:"";position:fixed;inset:0;border:4px solid #efbf66;box-shadow:inset 0 0 20px #efbf6633;pointer-events:none;z-index:25;border-radius:8px}

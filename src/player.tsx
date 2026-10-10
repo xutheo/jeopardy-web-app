@@ -8,7 +8,7 @@ export function PlayerControls({ v, send, disabled }: Props) {
   const eligible = !!me?.active && !!c && !c.group && !boost && !c.lockedTeams.includes(me.teamId) && (c.state === 'open' || c.state === 'restricted' && c.representatives[me.teamId] === me.id);
   const buzz = () => { if (!disabled && eligible && c) void send('buzz', { attemptId: c.id }); };
   useEffect(() => { const key = (e: KeyboardEvent) => { if (e.code === 'Space' && !e.repeat && e.target === document.body) { e.preventDefault(); buzz(); } }; window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key); }, [eligible, disabled, c?.id]);
-  if (c?.group) return <GroupActivity key={c.id} v={v} send={send} disabled={disabled}/>;
+  if (c?.group && c.group.status !== 'review' && c.state !== 'resolved') return <GroupActivity key={c.id} v={v} send={send} disabled={disabled}/>;
   const label = disabled ? v.paused ? 'PAUSED' : 'CONNECTING' : c?.state === 'answering' && c.winner === me?.id ? 'YOUR ANSWER' : eligible ? 'BUZZ IN' : v.phase === 'lobby' ? 'WAITING FOR HOST' : 'STAND BY';
   return <div className="player-buzzer"><button className={`buzzer ${eligible ? 'ready' : ''}`} disabled={disabled || !eligible} onClick={buzz}><span>ϟ</span>{label}</button></div>;
 }

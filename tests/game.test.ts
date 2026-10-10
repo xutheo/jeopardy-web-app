@@ -368,3 +368,31 @@ test('instructions start visible and only the host can toggle them between quest
   open(f);
   assert.throws(() => f.command('show-instructions', { visible: true }), /between questions/);
 });
+
+test('undo team awards reverses only that award, restores selection, and permits a corrected award', () => {
+ const {g,command}=fixture();
+ Object.assign(g.boards[0][0].clues[0],{kind:'group',groupMode:'time',link:'https://example.com'});
+ command('open-clue',{category:0,row:0});const attemptId=g.current!.id, original=g.selectorTeamId;
+ command('start-group',{attemptId});command('lock-group',{attemptId},2000);
+ const [a,b]=g.teams;
+ command('award-group',{attemptId,teamId:a.id,points:100,reason:'First'});
+ command('award-group',{attemptId,teamId:b.id,points:200,reason:'Second'});
+ const entryId=g.current!.group!.awards['team:'+b.id].entryId;
+ const undo={attemptId,teamId:b.id,entryId};
+ assert.throws(()=>command('undo-group-award',undo,0,{role:'player',playerId:g.players[0].id}),/Only the host/);
+ command('undo-group-award',undo);assert.equal(b.score,0);assert.equal(a.score,100);assert.equal(g.selectorTeamId,a.id);
+ assert.throws(()=>command('undo-group-award',undo),/already been undone/);
+ command('undo-group-award',{attemptId,teamId:a.id,entryId:g.current!.group!.awards['team:'+a.id].entryId});
+ assert.equal(g.selectorTeamId,original);
+ command('award-group',{attemptId,teamId:b.id,points:50,reason:'Corrected'});assert.equal(b.score,50);
+ assert.throws(()=>command('undo-group-award',undo),/changed/);
+ assert.equal(gameSchema.parse(g).current!.group!.selectorBeforeAwards,original);
+});
+
+test('activity review returns directly to the board while keeping awards', () => {
+ const {g,command}=fixture();Object.assign(g.boards[0][0].clues[0],{kind:'group',groupMode:'time',link:'https://example.com'});
+ command('open-clue',{category:0,row:0});const attemptId=g.current!.id;
+ command('start-group',{attemptId});assert.throws(()=>command('return-board'),/Finish this clue/);
+ command('lock-group',{attemptId});command('award-group',{attemptId,teamId:g.teams[0].id,points:100,reason:'Winner'});
+ command('return-board');assert.equal(g.current,null);assert.equal(g.teams[0].score,100);assert.equal(g.boards[0][0].clues[0].used,true);
+});

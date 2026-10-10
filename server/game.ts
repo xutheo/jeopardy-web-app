@@ -222,9 +222,24 @@ export function applyCommand(g: Game, actor: Actor, command: Command, now: numbe
       const awardKey = 'team:' + teamId;
       requireRule(!Object.hasOwn(c.group.awards, awardKey) && !g.players.some(x => x.teamId === teamId && Object.hasOwn(c.group!.awards, x.id)), 'This team has already been awarded points.');
       requireRule(Number.isInteger(p.points) && Math.abs(p.points) <= 1000000 && typeof p.reason === 'string' && p.reason.trim().length > 0 && p.reason.length <= 200, 'Enter whole-number points and a reason.');
+      if (c.group.selectorBeforeAwards === undefined) c.group.selectorBeforeAwards = g.selectorTeamId ?? null;
       const entry = score(g, teamId, p.points, 'Group play: ' + p.reason.trim());
       if (p.points > 0) g.selectorTeamId = teamId;
       c.group.awards[awardKey] = { points: p.points, reason: p.reason.trim(), entryId: entry.id }; g.undo = null; break;
+    }
+    case 'undo-group-award': {
+      requireRule(c?.group?.status === 'review' && c.state !== 'resolved' && p.attemptId === c.id, 'Reopen activity review before undoing an award.');
+      const key = Object.keys(c.group.awards).find(key => key === 'team:' + p.teamId || g.players.some(player => player.id === key && player.teamId === p.teamId));
+      const award = key ? c.group.awards[key] : undefined;
+      requireRule(award && award.entryId === p.entryId, 'This award has already been undone or changed.');
+      score(g, p.teamId, -award.points, 'Undo group award: ' + award.reason);
+      delete c.group.awards[key!];
+      if (award.points > 0) {
+        const remaining = new Set(Object.values(c.group.awards).filter(a => a.points > 0).map(a => a.entryId));
+        const last = [...g.ledger].reverse().find(entry => remaining.has(entry.id));
+        g.selectorTeamId = last?.teamId ?? c.group.selectorBeforeAwards ?? null;
+      }
+      g.undo = null; break;
     }
     case 'start-boost': {
       requireRule(c?.state === 'revealed' && activeClue?.boost && !c.boost && p.attemptId === c.id, 'This Qoobee Boost is not ready.');
@@ -256,7 +271,7 @@ export function applyCommand(g: Game, actor: Actor, command: Command, now: numbe
     case 'unfinish-activity': requireRule(c?.group && c.state === 'resolved' && p.attemptId === c.id, 'No finished activity to reopen.'); c.state = 'revealed'; c.group.status = 'review'; c.group.runningSince = null; g.undo = null; break;
     case 'close-clue': requireRule(c && c.state !== 'resolved', 'No active clue.'); complete(g); if (!c.group) c.revealedAnswer = true; g.undo = null; break;
     case 'reveal': requireRule(c?.state === 'resolved' && !c.group, 'Close a question before revealing the answer.'); c.revealedAnswer = true; g.undo = null; break;
-    case 'return-board': requireRule(c?.state === 'resolved', 'Finish this clue first.'); g.current = null; g.undo = null; if (g.boards[g.board].every(cat => cat.clues.every(q => q.used))) advanceBoard(g); break;
+    case 'return-board': requireRule(c?.state === 'resolved' || c?.group?.status === 'review', 'Finish this clue first.'); g.current = null; g.undo = null; if (g.boards[g.board].every(cat => cat.clues.every(q => q.used))) advanceBoard(g); break;
     case 'advance-board':
       requireRule(g.phase === 'board' && !c, 'Return to the board first.');
       requireRule(g.boards[g.board].every(cat => cat.clues.every(q => q.used)) || p.skip === true, 'There are still unplayed clues. Confirm ending this board early.');
