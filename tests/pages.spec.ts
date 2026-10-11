@@ -11,7 +11,7 @@ test('Pages subpath works with a separate backend, private API requests, player 
   await page.getByRole('button', { name: 'Edit game boards' }).click();
   await page.getByRole('button', { name: 'Use sample questions' }).click();
   await page.getByRole('button', { name: 'Use sample collection' }).click();
-  await expect(page.getByText('50/50 clues ready', { exact: false })).toBeVisible();
+  await expect(page.getByText('60/60 clues ready', { exact: false })).toBeVisible();
   await expect(page.getByText('All changes saved', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Save & close' }).click();
   await page.getByRole('button', { name: 'Game tools' }).click();
@@ -34,7 +34,7 @@ test('Pages subpath works with a separate backend, private API requests, player 
   await other.getByLabel('Your name').fill('Rival');
   await other.getByRole('button', { name: 'Join game' }).click();
   await expect(page.getByText('2 players connected', { exact: false })).toBeVisible();
-  await page.getByRole('button', { name: 'Let’s play' }).click(); for(let i=0;i<4;i++) await page.getByRole('button',{name:'Next category',exact:true}).click(); await page.getByRole('button',{name:'Show board',exact:true}).click();
+  await page.getByRole('button', { name: 'Let’s play' }).click(); await page.getByRole('button',{name:'Continue to game',exact:true}).click(); for(let i=0;i<5;i++) await page.getByRole('button',{name:'Next category',exact:true}).click(); await page.getByRole('button',{name:'Show board',exact:true}).click();
   await page.getByRole('button', { name: 'Around the World, 100 points', exact: true }).click();
 
   await player.getByRole('button', { name: /BUZZ IN/ }).click();

@@ -15,7 +15,7 @@ const packs: [string, [string, string][]][] = [
   ['Numbers Game', [['This is the only even prime number.', '2'], ['A triangle’s interior angles add up to this many degrees in Euclidean geometry.', '180'], ['This is the square root of 144.', '12'], ['This mathematical constant is the ratio of a circle’s circumference to its diameter.', 'Pi'], ['This is the next number in the sequence 1, 1, 2, 3, 5, 8.', '13']]]
 ];
 export function sampleContent(): Content {
-  return { name: 'The Friday Night Collection', boards: [packs.slice(0, 5), packs.slice(5)].map(board => board.map(([title, pairs]) => ({ title, clues: pairs.map(([prompt, answer]) => ({ prompt, answer, used: false })) }))), final: { category: 'World Geography', prompt: 'This is the only continent that lies in all four hemispheres: Northern, Southern, Eastern, and Western.', answer: 'Africa' } };
+  return { name: 'The Friday Night Collection', boards: [packs.slice(0, 5).concat([packs[4]]), packs.slice(5).concat([packs[9]])].map(board => board.map(([title, pairs]) => ({ title, clues: pairs.map(([prompt, answer]) => ({ prompt, answer, used: false })) }))), final: { category: 'World Geography', prompt: 'This is the only continent that lies in all four hemispheres: Northern, Southern, Eastern, and Western.', answer: 'Africa' } };
 }
 
 /** Complete demo collection used by the in-app sample loader. */
@@ -36,5 +36,8 @@ export function allModesSampleContent(): Content {
   content.boards[0][1].clues[4] = { prompt: 'How many triangles are shown in this image?', answer: '3 / Three', used: false, image: sampleImage, imageAlt: 'Three gold triangles on a blue background' };
   content.boards[1][2].clues[4] = { prompt: 'Open the practice link and submit a number from 1 to 6 as your attempt count. Fewer attempts rank higher. The host chooses which team receives points.', answer: '', used: false, kind: 'group', groupMode: 'score', scoreOrder: 'lower', linkLabel: 'Fewest attempts', link: 'https://example.com' };
   content.boards[1][4].clues[4].boost = true;
+  const questions = (board: number) => ({ title: 'Team Questions', openToAll: true, description: 'Everyone on every team can buzz immediately. Work together to answer these questions.', clues: packs[board ? 9 : 4][1].map(([prompt, answer]) => ({ prompt, answer, used: false })) });
+  content.boards[0] = [...content.boards[0].slice(0,4), questions(0), content.boards[0][4]];
+  content.boards[1] = [content.boards[1][0],content.boards[1][1],content.boards[1][2],content.boards[1][4],questions(1),{...content.boards[1][3],title:'Team Challenges'}];
   return content;
 }

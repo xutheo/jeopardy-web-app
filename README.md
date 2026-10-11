@@ -243,3 +243,9 @@ New players join with a room code and username, without choosing a team first. T
 After answers lock, the host can select **Show team** on any team, in any order. **Reveal answer** and **Reveal wager** independently reveal that team's submission on the streamed board; selecting another team preserves earlier reveals. **Correct** adds the wager and **Incorrect** subtracts it exactly once, including negative totals. Judging selects that team on the stream and shows the score change. A score change necessarily indicates the wager even if its separate reveal panel is still hidden.
 
 After judging every team, select **Show final leaderboard** to display the winners, all team totals, shared ranks for ties, and celebration effects. The last team's reveal remains visible until this button is pressed. Presentation state is saved with the game; reset clears it. Reduced-motion preferences disable celebration animations.
+
+## Six-category boards and whole-team questions
+
+New boards contain six categories and five clues per category (60 clues total). In the category editor, **Whole-team questions** marks a column with red borders on the streamed board. Regular questions in that category allow every active player to buzz immediately, with no representative-only countdown. The first buzz still wins, and an incorrect answer still locks that team out of the current clue. Qoobee Boost and group activities retain their own rules.
+
+The sample JSON places **Team Questions** fifth and **Team Challenges** sixth on both boards. Board one's final column contains the five Bomb Defusal levels; board two's contains the other team activities. Older five-category imports/saves remain supported without inserting questions into games already in progress. Load the updated sample file to replace a lobby's boards with six categories.

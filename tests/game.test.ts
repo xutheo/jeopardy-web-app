@@ -8,7 +8,7 @@ import type { Actor, Game } from '../shared/model.js';
 
 const host: Actor = { role: 'host' };
 function fixture(size = 3) {
-  const g = newGame('host-secret'); Object.assign(g, sampleContent());
+  const g = newGame('host-secret'); g.teams = g.teams.slice(0,2); Object.assign(g, sampleContent());
   for (let t = 0; t < 2; t++) for (let i = 0; i < size; i++) g.players.push({ id: `p${t}-${i}`, name: `Player ${t}-${i}`, teamId: g.teams[t].id, tokenHash: hash(`token${t}-${i}`), active: true, selections: 0 });
   for (const t of g.teams) t.captain = g.players.find(p => p.teamId === t.id)!.id;
   const online = new Set(g.players.map(p => p.id));
@@ -23,7 +23,7 @@ test('stable rosters get one turn per cycle and no immediate cycle-boundary repe
   let previous: Record<string, string> = {};
   for (let cycle = 0; cycle < 12; cycle++) {
     const seen = new Map(g.teams.map(t => [t.id, new Set<string>()]));
-    for (let turn = 0; turn < 5; turn++) { const reps = selectRepresentatives(g, online); for (const t of g.teams) { assert.ok(!seen.get(t.id)!.has(reps[t.id])); seen.get(t.id)!.add(reps[t.id]); if (cycle > 0 && turn === 0) assert.notEqual(reps[t.id], previous[t.id]); } previous = reps; }
+    for (let turn = 0; turn < 5; turn++) { const reps = cycle === 0 && turn === 0 ? g.nextRepresentatives! : selectRepresentatives(g, online); for (const t of g.teams) { assert.ok(!seen.get(t.id)!.has(reps[t.id])); seen.get(t.id)!.add(reps[t.id]); if (cycle > 0 && turn === 0) assert.notEqual(reps[t.id], previous[t.id]); } previous = reps; }
   }
   assert.ok(g.players.every(p => p.selections === 12));
 });
@@ -128,7 +128,7 @@ test('group completion uses server elapsed time excluding pauses; submissions an
   const f = fixture(), { g, command } = f;
   Object.assign(g.boards[0][0].clues[0], { kind: 'group', link: 'https://example.com/puzzle', groupMode: 'time' });
   command('open-clue', { category: 0, row: 0 }); const attemptId = g.current!.id, player: Actor = { role: 'player', playerId: g.players[0].id };
-  assert.ok(g.players.every(p => p.selections === 0));
+  assert.equal(g.players.reduce((sum, p) => sum + p.selections, 0), g.teams.length);
   assert.equal(publicView(g, player, f.online, 0, null).boards[0][0].clues[0].link, '');
   command('start-group', { attemptId }, 1000);
   assert.equal(publicView(g, player, f.online, 1000, null).boards[0][0].clues[0].link, 'https://example.com/puzzle');
@@ -176,7 +176,7 @@ test('automatic countdown, answer reveal and board progression preserve final an
 
 test('reconnecting fills an empty representative slot once and preserves already selected players', () => {
   const f = fixture(1), { g, online, command } = f;
-  const returning = g.players[1]; online.delete(returning.id);
+  const returning = g.players[1]; online.delete(returning.id); delete g.nextRepresentatives![returning.teamId]; returning.selections = 0;
   command('open-clue', { category: 0, row: 0 }, 1000);
   assert.equal(g.current!.representatives[returning.teamId], undefined);
   const original = g.current!.representatives[g.teams[0].id]; online.add(returning.id);
@@ -309,10 +309,10 @@ test('Final wagers allow 2000 for negative scores and larger positive balances',
   }
 });
 
-test('each board introduces five categories under host control',()=>{
+test('each board introduces six categories under host control',()=>{
  const {g,command}=fixture(1);assert.equal(g.introCategory,0);
  assert.throws(()=>command('next-category',{},0,{role:'player',playerId:g.players[0].id}),/Only the host/);
- for(let i=1;i<=4;i++){command('next-category');assert.equal(g.introCategory,i);}command('next-category');assert.equal(g.introCategory,null);
+ for(let i=1;i<=5;i++){command('next-category');assert.equal(g.introCategory,i);}command('next-category');assert.equal(g.introCategory,null);
  command('advance-board',{skip:true});assert.equal(g.board,1);assert.equal(g.introCategory,0);
  command('reset-game',{confirm:true});assert.equal(g.introCategory,null);
 });
@@ -395,4 +395,38 @@ test('activity review returns directly to the board while keeping awards', () =>
  command('start-group',{attemptId});assert.throws(()=>command('return-board'),/Finish this clue/);
  command('lock-group',{attemptId});command('award-group',{attemptId,teamId:g.teams[0].id,points:100,reason:'Winner'});
  command('return-board');assert.equal(g.current,null);assert.equal(g.teams[0].score,100);assert.equal(g.boards[0][0].clues[0].used,true);
+});
+
+test('representatives are visible between rounds and are reused when the question opens', () => {
+ const {g,command,online}=fixture(3);
+ const before=structuredClone(g.nextRepresentatives);
+ const selected=g.players.reduce((sum,p)=>sum+p.selections,0);
+ assert.equal(Object.keys(before!).length,2);
+ assert.deepEqual(publicView(g,{role:'display'},online,0,null).nextRepresentatives,before);
+ command('open-clue',{category:0,row:0});assert.deepEqual(g.current!.representatives,before);
+ assert.equal(g.players.reduce((sum,p)=>sum+p.selections,0),selected);
+ command('close-clue');command('return-board');
+ for(const team of g.teams)assert.notEqual(g.nextRepresentatives![team.id],before![team.id]);
+ const next=structuredClone(g.nextRepresentatives);
+ command('open-clue',{category:0,row:1});assert.deepEqual(g.current!.representatives,next);
+ assert.deepEqual(gameSchema.parse(g).nextRepresentatives,next);
+});
+
+test('whole-team questions allow nonrepresentatives to buzz immediately and retain team lockouts', () => {
+ const {g,command}=fixture(3);g.boards[0][4].openToAll=true;
+ command('open-clue',{category:4,row:0},1000);
+ assert.equal(g.current!.state,'open');assert.equal(g.current!.deadline,null);
+ const teammate=g.players.find(p=>p.teamId===g.teams[0].id && p.id!==g.current!.representatives[p.teamId])!;
+ command('buzz',{attemptId:g.current!.id},1001,{role:'player',playerId:teammate.id});
+ command('judge',{buzzId:g.current!.buzzId,correct:false},1002);
+ assert.equal(g.current!.state,'open');
+ assert.throws(()=>command('buzz',{attemptId:g.current!.id},1003,{role:'player',playerId:teammate.id}));
+ const other=g.players.find(p=>p.teamId===g.teams[1].id)!;
+ command('buzz',{attemptId:g.current!.id},1004,{role:'player',playerId:other.id});assert.equal(g.current!.winner,other.id);
+});
+test('sixth category opens and its answer remains private', () => {
+ const {g,command,online}=fixture();command('open-clue',{category:5,row:4});
+ assert.equal(g.current!.category,5);
+ assert.equal(publicView(g,{role:'display'},online,0,null).boards[0][5].clues[4].answer,'');
+ assert.ok(gameSchema.parse(g));
 });

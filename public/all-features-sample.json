@@ -130,6 +130,38 @@
         "description": "Test your team’s knowledge of at the movies."
       },
       {
+        "title": "Team Questions",
+        "openToAll": true,
+        "description": "Everyone on every team can buzz immediately. Work together to answer these questions.",
+        "clues": [
+          {
+            "prompt": "A standard chessboard has this many squares.",
+            "answer": "64",
+            "used": false
+          },
+          {
+            "prompt": "This instrument has 88 keys in its standard modern form.",
+            "answer": "Piano",
+            "used": false
+          },
+          {
+            "prompt": "This sport uses the terms birdie, eagle, and bogey.",
+            "answer": "Golf",
+            "used": false
+          },
+          {
+            "prompt": "This is the main ingredient in traditional hummus.",
+            "answer": "Chickpeas",
+            "used": false
+          },
+          {
+            "prompt": "This Roman numeral represents 1,000.",
+            "answer": "M",
+            "used": false
+          }
+        ]
+      },
+      {
         "title": "Team Challenges",
         "teamBased": true,
         "description": "Five bomb modules, from beginner to expert. Combine your private clues and cut every wire in order.",
@@ -401,7 +433,71 @@
         "description": "Test your team’s knowledge of word play."
       },
       {
-        "title": "Team Activities",
+        "title": "Numbers Game",
+        "clues": [
+          {
+            "prompt": "This is the only even prime number.",
+            "answer": "2",
+            "used": false
+          },
+          {
+            "prompt": "A triangle’s interior angles add up to this many degrees in Euclidean geometry.",
+            "answer": "180",
+            "used": false
+          },
+          {
+            "prompt": "This is the square root of 144.",
+            "answer": "12",
+            "used": false
+          },
+          {
+            "prompt": "This mathematical constant is the ratio of a circle’s circumference to its diameter.",
+            "answer": "Pi",
+            "used": false
+          },
+          {
+            "prompt": "This is the next number in the sequence 1, 1, 2, 3, 5, 8.",
+            "answer": "13",
+            "used": false,
+            "boost": true
+          }
+        ],
+        "description": "Test your team’s knowledge of numbers game."
+      },
+      {
+        "title": "Team Questions",
+        "openToAll": true,
+        "description": "Everyone on every team can buzz immediately. Work together to answer these questions.",
+        "clues": [
+          {
+            "prompt": "This is the only even prime number.",
+            "answer": "2",
+            "used": false
+          },
+          {
+            "prompt": "A triangle’s interior angles add up to this many degrees in Euclidean geometry.",
+            "answer": "180",
+            "used": false
+          },
+          {
+            "prompt": "This is the square root of 144.",
+            "answer": "12",
+            "used": false
+          },
+          {
+            "prompt": "This mathematical constant is the ratio of a circle’s circumference to its diameter.",
+            "answer": "Pi",
+            "used": false
+          },
+          {
+            "prompt": "This is the next number in the sequence 1, 1, 2, 3, 5, 8.",
+            "answer": "13",
+            "used": false
+          }
+        ]
+      },
+      {
+        "title": "Team Challenges",
         "teamBased": true,
         "description": "Race the clock, compare scores, crack codes, and put events in order.",
         "clues": [
@@ -486,38 +582,6 @@
             "link": "https://example.com"
           }
         ]
-      },
-      {
-        "title": "Numbers Game",
-        "clues": [
-          {
-            "prompt": "This is the only even prime number.",
-            "answer": "2",
-            "used": false
-          },
-          {
-            "prompt": "A triangle’s interior angles add up to this many degrees in Euclidean geometry.",
-            "answer": "180",
-            "used": false
-          },
-          {
-            "prompt": "This is the square root of 144.",
-            "answer": "12",
-            "used": false
-          },
-          {
-            "prompt": "This mathematical constant is the ratio of a circle’s circumference to its diameter.",
-            "answer": "Pi",
-            "used": false
-          },
-          {
-            "prompt": "This is the next number in the sequence 1, 1, 2, 3, 5, 8.",
-            "answer": "13",
-            "used": false,
-            "boost": true
-          }
-        ],
-        "description": "Test your team’s knowledge of numbers game."
       }
     ]
   ],

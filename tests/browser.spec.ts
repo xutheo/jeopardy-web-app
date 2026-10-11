@@ -15,7 +15,7 @@ test('host editor, mobile teams, buzzer judging, board transition, and Final Jeo
   await host.getByRole('button', { name: 'Edit game boards' }).click();
   await host.getByRole('button', { name: 'Use sample questions' }).click();
   await host.getByRole('button', { name: 'Use sample collection' }).click();
-  await expect(host.getByText('50/50 clues ready', { exact: false })).toBeVisible();
+  await expect(host.getByText('60/60 clues ready', { exact: false })).toBeVisible();
   await expect(host.getByText('All changes saved', { exact: true })).toBeVisible();
   await host.screenshot({ path: 'artifacts/board-editor.png', fullPage: true });
   await host.getByRole('button', { name: 'Save & close' }).click();
@@ -30,7 +30,7 @@ test('host editor, mobile teams, buzzer judging, board transition, and Final Jeo
   await join(ada, 'Ada', 0); await join(grace, 'Grace', 1);
   await expect(host.getByText('2 players connected')).toBeVisible();
   await host.getByRole('button', { name: 'Let’s play' }).click(); await introduceBoard(host);
-  await expect(host.locator('.clue-tile')).toHaveCount(25);
+  await expect(host.locator('.clue-tile')).toHaveCount(30);
   await host.screenshot({ path: 'artifacts/game-board.png', fullPage: true });
   await host.getByRole('button', { name: 'Around the World, 100 points', exact: true }).click();
   await expect(ada.getByRole('button', { name: /BUZZ IN/ })).toBeEnabled();
@@ -63,9 +63,9 @@ test('host editor, mobile teams, buzzer judging, board transition, and Final Jeo
   await host.getByRole('button', { name: 'Back to the board' }).click();
   await expect(host.getByRole('button', { name: 'Next board' })).toHaveCount(0);
   async function finishClues(count: number) { for (let i=0; i<count; i++) { /* Pace 50-clue traversal below the production command rate limit. */ await new Promise(resolve => setTimeout(resolve, 300)); await host.locator('.clue-tile:not([disabled])').first().click(); await host.getByRole('button', { name: /^(Close clue and reveal answer|Cancel activity)$/ }).click(); await host.getByRole('button', { name: 'Back to the board' }).click(); } }
-  await finishClues(24); await introduceBoard(host);
+  await finishClues(29); await introduceBoard(host);
   await expect(host.getByRole('button', { name: 'History Class, 200 points', exact: true })).toBeVisible();
-  await finishClues(25);
+  await finishClues(30);
   await expect(ada.getByRole('button', { name: 'Save wager' })).toBeVisible();
   await ada.getByRole('button', { name: 'Save wager' }).click();
   await grace.getByLabel(/Your team’s wager/).fill('100'); await grace.getByRole('button', { name: 'Save wager' }).click();
@@ -76,7 +76,7 @@ test('host editor, mobile teams, buzzer judging, board transition, and Final Jeo
   const stream = await browser.newPage();
   await stream.goto((await host.getByRole('link', { name: 'Open streamed board' }).getAttribute('href'))!);
   await host.locator('.final-team').nth(1).getByRole('button', { name: 'Show team', exact: true }).click();
-  await expect(stream.locator('.final-team-reveal h1')).toHaveText('The Wildcards');
+  await expect(stream.locator('.final-team-reveal h1')).toHaveText('Qooblings');
   await expect(stream.locator('.final-reveal-value').first()).not.toContainText('Africa');
   await host.locator('.final-team').nth(1).getByRole('button', { name: 'Reveal wager', exact: true }).click();
   await expect(stream.locator('.final-reveal-value').nth(1)).toContainText('100');
@@ -86,9 +86,9 @@ test('host editor, mobile teams, buzzer judging, board transition, and Final Jeo
   await host.locator('.final-team').first().getByRole('button', { name: '× Incorrect' }).click();
   await host.locator('.final-team').nth(1).getByRole('button', { name: '✓ Correct' }).click();
   await host.getByRole('button', { name: 'Show final leaderboard' }).click();
-  await expect(host.getByRole('heading', { name: /The Wildcards.*take the crown/ })).toBeVisible();
+  await expect(host.getByRole('heading', { name: /Qooblings.*take the crown/ })).toBeVisible();
   await expect(host.locator('.rankings b').first()).toHaveText('200');
-  await expect(stream.locator('.stream-final-results h1')).toHaveText('The Wildcards');
+  await expect(stream.locator('.stream-final-results h1')).toHaveText('Qooblings');
   await expect(stream.locator('.winner-row b')).toHaveText('200');
   await stream.screenshot({ path: 'artifacts/final-stream-winner.png' });
   await stream.close();
@@ -141,11 +141,11 @@ test('image clues, fullscreen, group results, and Qoobee Boost work across host 
   const players = await Promise.all(contexts.map(c => c.newPage()));
   try {
     for (const [i, page] of players.entries()) { await page.goto(`/?join=${code}`); await page.getByRole('button', { name: 'Find game' }).click(); await page.getByLabel('Your name').fill(`P${i}`);  await page.getByRole('button', { name: 'Join game' }).click(); await expect(page.getByRole('button', { name: /WAITING FOR HOST/ })).toBeVisible(); await page.getByLabel('Switch team').selectOption({index:i}); }
-    await expect(players[0].getByRole('heading', { name: 'Your team: The Brainwaves' })).toBeVisible();
+    await expect(players[0].getByRole('heading', { name: 'Your team: Qoobsters' })).toBeVisible();
     await players[0].getByLabel('Switch team').selectOption({ index: 1 });
     await expect(players[0].locator('.my-team-panel')).toContainText('P1');
     await players[0].getByLabel('Switch team').selectOption({ index: 0 });
-    await expect(players[0].getByRole('heading', { name: 'Your team: The Brainwaves' })).toBeVisible();
+    await expect(players[0].getByRole('heading', { name: 'Your team: Qoobsters' })).toBeVisible();
     await host.getByRole('button', { name: 'Let’s play' }).click(); await introduceBoard(host);
     await expect(players[0].getByLabel('Switch team')).toHaveCount(0);
     await expect(stream.locator('.stream-scores .selecting-team')).toHaveCount(1);
@@ -177,12 +177,12 @@ test('image clues, fullscreen, group results, and Qoobee Boost work across host 
     await contexts[0].setOffline(false); await players[0].bringToFront();
     await expect(players[0].getByText('Reconnecting…', { exact: true })).not.toBeVisible();
     await expect(players[0].getByText(/Your result:.*seconds/)).toBeVisible();
-    await host.getByRole('button', { name: 'End activity' }).click(); await expect(stream.getByRole('heading', { name: 'Top 5 times' })).toBeVisible(); await expect(players[0].getByRole('button', { name: /STAND BY/ })).toBeVisible(); await expect(stream.locator('.stream-leaderboard li')).toContainText('P0'); await stream.screenshot({ path: 'artifacts/timed-leaderboard.png', animations: 'disabled' }); await host.getByRole('button', { name: 'Award points to The Brainwaves' }).click();
+    await host.getByRole('button', { name: 'End activity' }).click(); await expect(stream.getByRole('heading', { name: 'Top 5 times' })).toBeVisible(); await expect(players[0].getByRole('button', { name: /STAND BY/ })).toBeVisible(); await expect(stream.locator('.stream-leaderboard li')).toContainText('P0'); await stream.screenshot({ path: 'artifacts/timed-leaderboard.png', animations: 'disabled' }); await host.getByRole('button', { name: 'Award points to Qoobsters' }).click();
     await expect(host.locator('.score-card').first()).toContainText('600');
     await host.screenshot({ path: 'artifacts/group-results.png' }); await host.getByRole('button', { name: 'Undo end activity' }).click(); await host.getByRole('button', { name: 'End activity', exact: true }).click(); await expect(host.getByText('200 points awarded', { exact: true })).toBeVisible(); await host.getByRole('button', { name: 'Back to the board', exact: true }).click();
     await host.getByRole('button', { name: 'Around the World, 300 points', exact: true }).click(); await host.getByRole('button', { name: 'Broadcast link & start' }).click();
     await players[1].getByLabel('Your score').fill('4/6'); await players[1].getByRole('button', { name: 'Submit score', exact: true }).click();
-    await expect(host.locator('.activity-team').filter({ has: host.getByRole('heading', { name: 'The Wildcards', exact: true }) })).toContainText('4/6'); await host.getByRole('button', { name: 'End activity' }).click(); await expect(stream.getByRole('heading', { name: 'Top 5 scores' })).toBeVisible(); await expect(stream.locator('.stream-leaderboard li')).toContainText('4/6'); await host.getByRole('button', { name: 'Award points to The Wildcards' }).click();
+    await expect(host.locator('.activity-team').filter({ has: host.getByRole('heading', { name: 'Qooblings', exact: true }) })).toContainText('4/6'); await host.getByRole('button', { name: 'End activity' }).click(); await expect(stream.getByRole('heading', { name: 'Top 5 scores' })).toBeVisible(); await expect(stream.locator('.stream-leaderboard li')).toContainText('4/6'); await host.getByRole('button', { name: 'Award points to Qooblings' }).click();
     await expect(host.locator('.score-card').nth(1)).toContainText('300');
 
     await host.getByRole('button', { name: 'Back to the board', exact: true }).click();
@@ -229,14 +229,14 @@ test('custom team puzzles distribute private hints, validate answers, and show t
   for(const wire of ['Blue ●','Green ■','Red ★','Yellow ▲']) await players[0].getByRole('button',{name:wire+' Cut wire',exact:true}).click();await expect(players[0].locator('.puzzle-player').getByRole('status')).toContainText('Team finished');await players[0].reload();await expect(players[0].locator('.puzzle-player').getByRole('status')).toContainText('Team finished');await finish();
   await open(2);const desired=['First powered flight','Moon landing','World Wide Web proposed'];
   for(const [target,item] of desired.entries()) {let labels=await players[0].locator('.timeline-order li > span').allTextContents();while(labels.indexOf(item)>target){await players[0].getByRole('button',{name:'Move '+item+' earlier',exact:true}).click();labels=await players[0].locator('.timeline-order li > span').allTextContents();}}
-  await players[0].getByRole('button',{name:'Submit order',exact:true}).click();await expect(players[0].locator('.puzzle-player').getByRole('status')).toContainText('Team finished');await host.getByRole('button',{name:'End activity',exact:true}).click();await expect(host.getByRole('button',{name:'Award points to The Brainwaves'})).toBeVisible();await expect(stream.locator('.puzzle-result').first()).toContainText('The Brainwaves');await stream.screenshot({path:'artifacts/puzzle-results.png'});
+  await players[0].getByRole('button',{name:'Submit order',exact:true}).click();await expect(players[0].locator('.puzzle-player').getByRole('status')).toContainText('Team finished');await host.getByRole('button',{name:'End activity',exact:true}).click();await expect(host.getByRole('button',{name:'Award points to Qoobsters'})).toBeVisible();await expect(stream.locator('.puzzle-result').first()).toContainText('Qoobsters');await stream.screenshot({path:'artifacts/puzzle-results.png'});
   for(const ctx of contexts)await ctx.close();
 });
 
 
 
 
-async function introduceBoard(host: Page) { if(await host.getByRole('button',{name:'Continue to game',exact:true}).isVisible()) await host.getByRole('button',{name:'Continue to game',exact:true}).click(); for(let i=0;i<4;i++) await host.getByRole('button',{name:'Next category',exact:true}).click(); await host.getByRole('button',{name:'Show board',exact:true}).click(); }
+async function introduceBoard(host: Page) { if(await host.getByRole('button',{name:'Continue to game',exact:true}).isVisible()) await host.getByRole('button',{name:'Continue to game',exact:true}).click(); while(await host.getByRole('button',{name:'Next category',exact:true}).isVisible()) await host.getByRole('button',{name:'Next category',exact:true}).click(); await host.getByRole('button',{name:'Show board',exact:true}).click(); }
 
 
 test('host kicks a lobby player and their client returns home',async({page:host,browser})=>{

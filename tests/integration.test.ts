@@ -44,11 +44,11 @@ test('live server: simultaneous buzzes, durable ruling, crash/restart, reconnect
   await fs.writeFile(path.join(root, 'games'), 'simulated unavailable storage');
   const failedRuling = await cmd(h.socket, 'adjust-score', { teamId: before.teams[0].id, amount: 700, reason: 'Must not commit' });
   assert.equal(failedRuling.ok, false); assert.match(failedRuling.error, /Saving to disk failed/);
-  const frozen = await connect(host); assert.equal(frozen.state.paused, true); assert.ok(frozen.state.storageError); assert.deepEqual(frozen.state.teams.map(t => t.score), before.teams.map(t => t.score));
+  const frozen = await connect(host); assert.equal(frozen.state.paused, true); assert.ok(frozen.state.storageError); assert.deepEqual(frozen.state.teams.map(t => t.score), before.teams.filter(t => before.players.some(p => p.teamId === t.id)).map(t => t.score));
   await fs.unlink(path.join(root, 'games')); await fs.rename(path.join(root, 'games-held'), path.join(root, 'games'));
   await api(`/api/games/${host.gameId}/retry-storage`, {}, host.token);
   await kill(); sockets.forEach(s => s.disconnect()); await start();
-  const recoveredHost = await connect(host); assert.equal(recoveredHost.state.paused, true); assert.equal(recoveredHost.state.current!.winner, winner); assert.deepEqual(recoveredHost.state.teams.map(t => t.score), before.teams.map(t => t.score));
+  const recoveredHost = await connect(host); assert.equal(recoveredHost.state.paused, true); assert.equal(recoveredHost.state.current!.winner, winner); assert.deepEqual(recoveredHost.state.teams.map(t => t.score), before.teams.filter(t => before.players.some(p => p.teamId === t.id)).map(t => t.score));
   await connect(p1); const retry = await cmd(recoveredHost.socket, 'judge', rulingPayload, ruling); assert.equal(retry.ok, true);
   durable = (await new DiskStore(root).load(host.gameId)).game; assert.equal(durable.ledger.length, 1);
   const backup = await api(`/api/games/${host.gameId}/backup`, undefined, host.token); assert.equal(backup.game.hostHash, ''); assert.ok(backup.game.players.every((p: any) => !p.tokenHash));

@@ -7,7 +7,7 @@ export const token = () => randomBytes(32).toString('hex');
 function requireRule(ok: unknown, message: string): asserts ok { if (!ok) throw new Error(message); }
 export function newGame(hostToken: string, name = 'Friday Night Jeopardy'): Game {
   return { ...emptyContent(), name, schemaVersion: 1, id: randomUUID(), code: randomBytes(4).toString('hex').slice(0, 6).toUpperCase(), hostHash: hash(hostToken), version: 0, savedAt: '', phase: 'lobby', board: 0, selectorTeamId: null,
-    teams: ['The Brainwaves', 'The Wildcards'].map(name => ({ id: randomUUID(), name, score: 0, captain: null, queue: [], last: null })), players: [], current: null, paused: false, recovery: null, ledger: [], processed: {}, finalEntries: {}, finalRemainingMs: 30000, finalDeadline: null, undo: null };
+    teams: ['Qoobsters', 'Qooblings'].map(name => ({ id: randomUUID(), name, score: 0, captain: null, queue: [], last: null })), players: [], current: null, paused: false, recovery: null, ledger: [], processed: {}, finalEntries: {}, finalRemainingMs: 30000, finalDeadline: null, undo: null };
 }
 export function authenticate(g: Game, credential: string): Actor {
   if (credential && hash(credential) === g.hostHash) return { role: 'host' };
@@ -45,12 +45,13 @@ export function selectRepresentatives(g: Game, online: Set<string>, onlyTeam?: s
 // Reconnecting to a team that had nobody online must restore its restricted-round opportunity.
 export function fillMissingRepresentatives(g: Game, online: Set<string>) {
   const c = g.current;
-  if (!c || c.group || !['restricted', 'revealed'].includes(c.state)) return false;
+  if (g.phase !== 'board' || c && (c.group || !['restricted', 'revealed'].includes(c.state))) return false;
+  const representatives = c ? c.representatives : (g.nextRepresentatives ??= {});
   let changed = false;
   for (const team of g.teams) {
-    if (c.representatives[team.id]) continue;
+    if (representatives[team.id]) continue;
     const selected = selectRepresentatives(g, online, team.id);
-    if (selected[team.id]) { c.representatives[team.id] = selected[team.id]; changed = true; }
+    if (selected[team.id]) { representatives[team.id] = selected[team.id]; changed = true; }
   }
   if (changed) g.version++;
   return changed;
@@ -84,7 +85,7 @@ function score(g: Game, teamId: string, amount: number, reason: string, playerId
 }
 function complete(g: Game) { if (g.current) { g.current.state = 'resolved'; g.current.deadline = null; if (g.current.group) { g.current.group.runningSince = null; g.current.group.status = 'review'; } } }
 function completeContent(g: Game) {
-  requireRule(g.boards.every(b => b.every(c => c.title.trim() && c.clues.every(isClueReady))) && Object.values(g.final).every(s => s.trim()), 'Complete all 50 clues, category titles, and Final Jeopardy. External activities need an HTTPS link; team puzzles need valid clues and a complete solution.');
+  requireRule(g.boards.every(b => b.every(c => c.title.trim() && c.clues.every(isClueReady))) && Object.values(g.final).every(s => s.trim()), 'Complete all clues, category titles, and Final Jeopardy. External activities need an HTTPS link; team puzzles need valid clues and a complete solution.');
 }
 export function applyCommand(g: Game, actor: Actor, command: Command, now: number, online: Set<string>) {
   const { type, payload: p = {} } = command;
@@ -159,34 +160,34 @@ export function applyCommand(g: Game, actor: Actor, command: Command, now: numbe
       for (const team of g.teams) { team.score = 0; team.queue = []; team.last = null; }
       for (const member of g.players) member.selections = 0;
       g.phase = 'lobby'; g.board = 0; g.current = null; g.paused = false; g.recovery = null;
-      g.ledger = []; g.undo = null; g.finalEntries = {}; g.finalPresentation = undefined; g.instructionsVisible = false; g.finalRemainingMs = 30000; g.finalDeadline = null; g.selectorTeamId = null; g.introCategory = null; break;
+      g.ledger = []; g.undo = null; g.finalEntries = {}; g.finalPresentation = undefined; g.nextRepresentatives = {}; g.instructionsVisible = false; g.finalRemainingMs = 30000; g.finalDeadline = null; g.selectorTeamId = null; g.introCategory = null; break;
     case 'start':
       requireRule(g.phase === 'lobby', 'The game has already started.'); completeContent(g);
       requireRule(g.teams.filter(t => g.players.some(x => x.active && x.teamId === t.id && online.has(x.id))).length >= 2, 'Connect at least one player on each of two teams.');
       for (const t of g.teams) t.queue = shuffle(g.players.filter(x => x.active && x.teamId === t.id).map(x => x.id));
       { const candidates = g.teams.filter(t => g.players.some(p => p.active && p.teamId === t.id && online.has(p.id))); g.selectorTeamId = candidates[randomInt(candidates.length)].id; }
-      g.phase = 'board'; g.introCategory = 0; g.instructionsVisible = true; break;
+      g.phase = 'board'; g.nextRepresentatives = selectRepresentatives(g, online); g.introCategory = 0; g.instructionsVisible = true; break;
     case 'show-instructions':
       requireRule(g.phase === 'board' && !g.current && typeof p.visible === 'boolean', 'Instructions can be shown between questions.');
       g.instructionsVisible = p.visible; break;
     case 'next-category':
       g.instructionsVisible = false;
       requireRule(g.phase === 'board' && !c && g.introCategory != null, 'No category introduction is active.');
-      g.introCategory = g.introCategory === 4 ? null : g.introCategory + 1; break;
+      g.introCategory = g.introCategory === g.boards[g.board].length - 1 ? null : g.introCategory + 1; break;
     case 'open-clue':
       g.instructionsVisible = false; {
       requireRule(g.phase === 'board' && !c, 'Return to the board before choosing a clue.');
-      requireRule(Number.isInteger(p.category) && p.category >= 0 && p.category < 5 && Number.isInteger(p.row) && p.row >= 0 && p.row < 5, 'Invalid clue.');
+      requireRule(Number.isInteger(p.category) && p.category >= 0 && p.category < g.boards[g.board].length && Number.isInteger(p.row) && p.row >= 0 && p.row < 5, 'Invalid clue.');
       const clue = g.boards[g.board][p.category].clues[p.row]; requireRule(!clue.used, 'That clue has already been played.');
       clue.used = true; g.undo = null; g.introCategory = null;
       requireRule(!(clue.kind === 'group' && clue.boost), 'Group activities cannot also be Qoobee Boost clues.');
-      g.current = { id: randomUUID(), category: p.category, row: p.row, state: clue.kind === 'group' || clue.boost ? 'revealed' : 'restricted', representatives: clue.kind === 'group' ? {} : selectRepresentatives(g, online), lockedTeams: [], winner: null, buzzId: null, previous: 'restricted', remainingMs: 10000, deadline: clue.kind === 'group' || clue.boost ? null : now + 10000, revealedAnswer: false,
+      g.current = { id: randomUUID(), category: p.category, row: p.row, state: clue.kind === 'group' || clue.boost ? 'revealed' : g.boards[g.board][p.category].openToAll ? 'open' : 'restricted', representatives: { ...(g.nextRepresentatives ?? selectRepresentatives(g, online)) }, lockedTeams: [], winner: null, buzzId: null, previous: 'restricted', remainingMs: 10000, deadline: clue.kind === 'group' || clue.boost || g.boards[g.board][p.category].openToAll ? null : now + 10000, revealedAnswer: false,
         ...(clue.boost ? { boost: null } : {}), ...(clue.kind === 'group' ? { group: { status: 'ready', mode: clue.groupMode ?? 'time', elapsedMs: 0, runningSince: null, submissions: {}, awards: {} } } : {}) }; break;
     }
     case 'start-timer': requireRule(c?.state === 'revealed' && !c.group && !activeClue?.boost, 'The clue is not ready for a buzzer timer.'); c.state = 'restricted'; c.deadline = now + c.remainingMs; break;
     case 'start-group':
       requireRule(c?.group?.status === 'ready' && c.state === 'revealed' && p.attemptId === c.id, 'This activity is not ready.');
-      if (activeClue?.puzzle) startPuzzle(g, selectRepresentatives(g, online)); c.group.status = 'playing'; c.group.runningSince = now; break;
+      if (activeClue?.puzzle) startPuzzle(g, c.representatives); c.group.status = 'playing'; c.group.runningSince = now; break;
     case 'submit-puzzle': submitPuzzle(g, player, p); break;
     case 'puzzle-operator': {
       requireRule(c?.group?.puzzle && p.attemptId === c.id, 'No puzzle is active.');
@@ -271,7 +272,7 @@ export function applyCommand(g: Game, actor: Actor, command: Command, now: numbe
     case 'unfinish-activity': requireRule(c?.group && c.state === 'resolved' && p.attemptId === c.id, 'No finished activity to reopen.'); c.state = 'revealed'; c.group.status = 'review'; c.group.runningSince = null; g.undo = null; break;
     case 'close-clue': requireRule(c && c.state !== 'resolved', 'No active clue.'); complete(g); if (!c.group) c.revealedAnswer = true; g.undo = null; break;
     case 'reveal': requireRule(c?.state === 'resolved' && !c.group, 'Close a question before revealing the answer.'); c.revealedAnswer = true; g.undo = null; break;
-    case 'return-board': requireRule(c?.state === 'resolved' || c?.group?.status === 'review', 'Finish this clue first.'); g.current = null; g.undo = null; if (g.boards[g.board].every(cat => cat.clues.every(q => q.used))) advanceBoard(g); break;
+    case 'return-board': requireRule(c?.state === 'resolved' || c?.group?.status === 'review', 'Finish this clue first.'); g.current = null; g.undo = null; if (g.boards[g.board].every(cat => cat.clues.every(q => q.used))) advanceBoard(g); if (g.phase === 'board') g.nextRepresentatives = selectRepresentatives(g, online); else g.nextRepresentatives = {}; break;
     case 'advance-board':
       requireRule(g.phase === 'board' && !c, 'Return to the board first.');
       requireRule(g.boards[g.board].every(cat => cat.clues.every(q => q.used)) || p.skip === true, 'There are still unplayed clues. Confirm ending this board early.');
@@ -326,7 +327,7 @@ export function publicView(g: Game, actor: Actor, online: Set<string>, now: numb
   if (!safe.paused) { if (safe.current?.deadline != null) safe.current.remainingMs = Math.max(0, safe.current.deadline - now); if (safe.finalDeadline !== null) safe.finalRemainingMs = Math.max(0, safe.finalDeadline - now); }
   const view: View = { ...safe, players: safe.players.map(({ tokenHash, ...p }) => p), teams: safe.teams.filter(t => safe.phase === 'lobby' || safe.players.some(p => p.teamId === t.id)).map(({ queue, last, ...t }) => t), online: [...online], role: actor.role, playerId: actor.playerId, canUndo: actor.role === 'host' && !!undo, serverNow: now, storageError, wagerReady: Object.entries(g.finalEntries).filter(([, e]) => e.wager !== null).map(([id]) => id), unclaimed: actor.role === 'host' ? g.players.filter(p => !p.tokenHash).map(p => p.id) : [] };
   if (actor.role !== 'host') {
-    for (let b = 0; b < 2; b++) for (let i = 0; i < 5; i++) for (let r = 0; r < 5; r++) {
+    for (let b = 0; b < 2; b++) for (let i = 0; i < g.boards[b].length; i++) for (let r = 0; r < 5; r++) {
       const q = view.boards[b][i].clues[r];
       const current = b === g.board && g.current?.category === i && g.current.row === r;
       const boostHidden = current && q.boost && !g.current?.boost && g.current?.state !== 'resolved';

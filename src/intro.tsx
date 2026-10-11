@@ -12,7 +12,7 @@ export function IntroControls({ v,send,disabled }: { v:View;send:(type:string,pa
   await send('next-category');
  }
 
- return <section className="question-card category-intro-host"><span className="eyebrow">BOARD {v.board+1} · CATEGORY {i+1} OF 5</span><h2>{category.title}</h2><p>{category.description || 'No category description added.'}</p><button className="primary" disabled={disabled || coolingDown} onClick={()=>void nextCategory()}>{i===4?'Show board':'Next category'}</button></section>;
+ return <section className="question-card category-intro-host"><span className="eyebrow">BOARD {v.board+1} · CATEGORY {i+1} OF {v.boards[v.board].length}</span><h2>{category.title}</h2><p>{category.description || 'No category description added.'}</p><button className="primary" disabled={disabled || coolingDown} onClick={()=>void nextCategory()}>{i===v.boards[v.board].length-1?'Show board':'Next category'}</button></section>;
 }
 export function StreamIntro({ v }: {v:View}) {
  const incoming=v.phase==='board'&&!v.current?v.introCategory??null:null;
@@ -49,7 +49,7 @@ export function StreamIntro({ v }: {v:View}) {
  },[incoming,shown,v.board]);
  if(shown===null)return null;
  const cat=v.boards[v.board][shown];
- return <div className={"stream-category-intro" + (cat.teamBased ? " team-based-intro" : "")} ref={panel} key={v.board+'-'+shown}><span>BOARD {v.board+1} · CATEGORY {shown+1} OF 5</span><h1>{cat.title}</h1><p>{cat.description}</p></div>;
+ return <div className={"stream-category-intro" + (cat.openToAll ? " open-team-intro" : cat.teamBased ? " team-based-intro" : "")} ref={panel} key={v.board+'-'+shown}><span>BOARD {v.board+1} · CATEGORY {shown+1} OF {v.boards[v.board].length}</span><h1>{cat.title}</h1><p>{cat.description}</p></div>;
 }
 
 export function GameInstructions() {

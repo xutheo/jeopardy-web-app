@@ -12,8 +12,8 @@ export const clueSchema = z.object({
 });
 export type ClueData = z.infer<typeof clueSchema>;
 export const isClueReady = (q: ClueData) => !!q.prompt.trim() && (q.kind === 'group' ? q.puzzle ? puzzleReady(q.puzzle) && !q.boost : !!q.link && gameLinkSchema.safeParse(q.link).success && !q.boost : !!q.answer.trim());
-export const categorySchema = z.object({ teamBased: z.boolean().optional(), title: z.string().max(100), description: z.string().max(2000).optional(), clues: z.array(clueSchema).length(5) });
-export const boardSchema = z.array(categorySchema).length(5);
+export const categorySchema = z.object({ teamBased: z.boolean().optional(), openToAll: z.boolean().optional(), title: z.string().max(100), description: z.string().max(2000).optional(), clues: z.array(clueSchema).length(5) });
+export const boardSchema = z.array(categorySchema).min(5).max(6);
 export const contentSchema = z.object({
   name: z.string().trim().min(1).max(100), boards: z.array(boardSchema).length(2),
   final: z.object({ category: z.string().max(100), prompt: z.string().max(4000), answer: z.string().max(4000) })
@@ -22,7 +22,7 @@ export type Content = z.infer<typeof contentSchema>;
 const teamSchema = z.object({ id: z.string(), name: z.string().min(1).max(40), score: z.number().int(), captain: z.string().nullable(), queue: z.array(z.string()), last: z.string().nullable() });
 const playerSchema = z.object({ id: z.string(), name: z.string().min(1).max(40), teamId: z.string(), tokenHash: z.string(), active: z.boolean(), selections: z.number().int().nonnegative() });
 const currentSchema = z.object({
-  id: z.string(), category: z.number().int().min(0).max(4), row: z.number().int().min(0).max(4),
+  id: z.string(), category: z.number().int().min(0).max(5), row: z.number().int().min(0).max(4),
   state: z.enum(['revealed', 'restricted', 'open', 'answering', 'resolved']),
   representatives: z.record(z.string()), lockedTeams: z.array(z.string()),
   winner: z.string().nullable(), buzzId: z.string().nullable(), previous: z.enum(['restricted', 'open']),
@@ -43,8 +43,9 @@ export const gameSchema = contentSchema.extend({
   hostHash: z.string(), version: z.number().int().nonnegative(), savedAt: z.string(),
   phase: z.enum(['lobby', 'board', 'final-wager', 'final-answer', 'final-judge', 'finished']),
   board: z.number().int().min(0).max(1), teams: z.array(teamSchema).min(2).max(12), players: z.array(playerSchema).max(100),
+  nextRepresentatives: z.record(z.string()).optional(),
   instructionsVisible: z.boolean().optional(),
-  introCategory: z.number().int().min(0).max(4).nullable().optional(), selectorTeamId: z.string().nullable().optional(),
+  introCategory: z.number().int().min(0).max(5).nullable().optional(), selectorTeamId: z.string().nullable().optional(),
   current: currentSchema.nullable(), paused: z.boolean(), recovery: z.string().nullable(),
   ledger: z.array(ledgerSchema), processed: z.record(z.object({ actor: z.string() })),
   finalPresentation: z.object({ teamId: z.string().nullable(), answers: z.array(z.string()), wagers: z.array(z.string()) }).optional(),
@@ -63,13 +64,14 @@ export type View = Omit<Game, 'hostHash' | 'processed' | 'undo' | 'players' | 't
 };
 
 export function emptyContent(): Content {
-  return { name: 'Friday Night Jeopardy', boards: [0, 1].map(() => Array.from({ length: 5 }, () => ({ title: '', clues: Array.from({ length: 5 }, () => ({ prompt: '', answer: '', used: false })) }))), final: { category: '', prompt: '', answer: '' } };
+  return { name: 'Friday Night Jeopardy', boards: [0, 1].map(() => Array.from({ length: 6 }, () => ({ title: '', clues: Array.from({ length: 5 }, () => ({ prompt: '', answer: '', used: false })) }))), final: { category: '', prompt: '', answer: '' } };
 }
 export function points(board: number, row: number) { return (board + 1) * (row + 1) * 100; }
 export const money = (n: number) => new Intl.NumberFormat('en-US').format(n);
 
 export function activeTeamPlayer(v: View, teamId: string): string | null {
   const c = v.current;
+  if (!c && v.phase === 'board') return v.players.find(p => p.id === v.nextRepresentatives?.[teamId] && p.active)?.id ?? null;
   if (!c || c.group || c.lockedTeams.includes(teamId) || c.state === 'resolved' || c.state === 'open') return null;
   if (c.state === 'answering') return v.players.find(p => p.id === c.winner && p.teamId === teamId)?.id ?? null;
   return v.players.find(p => p.id === c.representatives[teamId] && p.active)?.id ?? null;
