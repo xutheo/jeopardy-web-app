@@ -15,7 +15,7 @@ import { joinPlayer } from './join.js';
 
 const app = express(), http = createServer(app);
 const origins = allowedOrigins(process.env.ALLOWED_ORIGINS);
-const io = new Server(http, { maxHttpBufferSize: 16 * 1024 * 1024, cors: { origin: [...origins], methods: ['GET', 'POST'] } });
+const io = new Server(http, { maxHttpBufferSize: 16 * 1024 * 1024, cors: { origin: [...origins], methods: ['GET', 'POST'], allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'] } });
 const store = new DiskStore(path.resolve(process.env.DATA_DIR || 'data'));
 const unlock = await lockDirectory(store.root);
 type Room = { game: Game; queue: Promise<unknown>; sockets: Map<string, Actor>; error: string | null; deleted?: boolean; expiry?: ReturnType<typeof setTimeout> };

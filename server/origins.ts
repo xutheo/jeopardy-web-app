@@ -15,7 +15,7 @@ export function corsMiddleware(origins: Set<string>): RequestHandler {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.vary('Origin');
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, ngrok-skip-browser-warning');
       if (req.method === 'OPTIONS') { res.sendStatus(204); return; }
     } else if (req.method === 'OPTIONS' && origin) { res.sendStatus(403); return; }
     next();

@@ -8,7 +8,7 @@ import './style.css';
 import { StreamDisplay } from './stream';
 import { PlayerControls, PlayerTeam } from './player';
 import { ClueOptions, ClueImage, GroupActivity, BoostClue, FullscreenButton } from './activities';
-import { serverUrl, basePath, siteUrl } from './environment';
+import { serverUrl, basePath, siteUrl, tunnelHeaders } from './environment';
 
 type SavedSession = Session & { name: string };
 type Send = (type: string, payload?: unknown) => Promise<boolean>;
@@ -20,7 +20,7 @@ function randomToken() { const bytes = new Uint8Array(32); crypto.getRandomValue
 // randomUUID is unavailable over plain HTTP on LAN devices in some browsers.
 function uuid() { return '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, c => (Number(c) ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> Number(c) / 4).toString(16)); }
 async function request(url: string, method = 'GET', body?: unknown, token?: string) {
-  const response = await fetch(`${serverUrl}${url}`, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
+  const response = await fetch(`${serverUrl}${url}`, { method, headers: { ...tunnelHeaders, 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
   const data = await response.json(); if (!response.ok) throw Object.assign(new Error(data.error || 'Request failed.'), { status: response.status }); return data;
 }
 function download(data: unknown, name: string) { const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })); const a = document.createElement('a'); a.href = url; a.download = name; a.click(); URL.revokeObjectURL(url); }
@@ -73,6 +73,7 @@ function GameRoom({ session, leave, onError }: { session: Session; leave: () => 
   const [view, setView] = useState<View | null>(null), [connected, setConnected] = useState(false), [busy, setBusy] = useState(false);
   const [editor, setEditor] = useState(false), [manage, setManage] = useState(false), [showTools, setShowTools] = useState(false), [resetConfirm, setResetConfirm] = useState(false);
   const [boardUnlockAt, setBoardUnlockAt] = useState(0);
+  const [connectionError, setConnectionError] = useState('');
   useEffect(() => {
     if (!boardUnlockAt) return;
     const timer = setTimeout(() => setBoardUnlockAt(0), Math.max(0, boardUnlockAt - Date.now()));
@@ -80,11 +81,11 @@ function GameRoom({ session, leave, onError }: { session: Session; leave: () => 
   }, [boardUnlockAt]);
   const socket = useRef<Socket | null>(null), latest = useRef<View | null>(null), pending = useRef(false);
   useEffect(() => {
-    const s = io(serverUrl || location.origin, { auth: { ...session, code: new URLSearchParams(location.search).get('code') || undefined }, reconnection: true }); socket.current = s;
-    s.on('state', (v: View) => { latest.current = v; setView(v); setConnected(true); });
+    const s = io(serverUrl || location.origin, { auth: { ...session, code: new URLSearchParams(location.search).get('code') || undefined }, reconnection: true, transports: ['websocket', 'polling'], tryAllTransports: true, extraHeaders: tunnelHeaders }); socket.current = s;
+    s.on('state', (v: View) => { latest.current = v; setView(v); setConnected(true); setConnectionError(''); });
     s.on('player-kicked', () => { localStorage.setItem(libraryKey, JSON.stringify(library().filter(saved => saved.token !== session.token))); s.disconnect(); leave(); onError('The host removed you from the lobby.'); });
     s.on('game-deleted', () => { forgetGame(session.gameId); s.disconnect(); leave(); onError('The host deleted this game and its saved files.'); });
-    s.on('disconnect', () => setConnected(false)); s.on('connect_error', (e: Error) => { setConnected(false); onError(e.message); });
+    s.on('disconnect', () => setConnected(false)); s.on('connect_error', (e: Error) => { setConnected(false); setConnectionError(e.message); onError(e.message); });
     const refresh = () => { if (document.visibilityState !== 'hidden') { setConnected(false); if (s.connected) s.emit('sync'); else s.connect(); } };
     window.addEventListener('focus', refresh); window.addEventListener('pageshow', refresh); document.addEventListener('visibilitychange', refresh);
     return () => { window.removeEventListener('focus', refresh); window.removeEventListener('pageshow', refresh); document.removeEventListener('visibilitychange', refresh); s.disconnect(); };
@@ -103,7 +104,7 @@ function GameRoom({ session, leave, onError }: { session: Session; leave: () => 
     } catch (e: any) { onError(e.message === 'operation has timed out' ? 'Confirmation timed out. Check the current game state before trying again.' : e.message); return false; }
     finally { pending.current = false; setBusy(false); }
   };
-  if (!view) return <div className="shell"><header className="topbar"><Logo/><button className="secondary" onClick={leave}>← Home</button></header><div className="empty-state"><span className="spinner"/><h2>Finding your game…</h2><p>Connecting to the game server.</p></div></div>;
+  if (!view) return <div className="shell"><header className="topbar"><Logo/><button className="secondary" onClick={leave}>← Home</button></header><div className="empty-state"><span className="spinner"/><h2>Finding your game…</h2><p>Connecting to the game server.</p>{connectionError && <div role="alert"><p>Live connection failed: {connectionError}</p><p>Check that the server and tunnel are running and that the server allows this website: {location.origin}</p><button className="secondary" onClick={() => { setConnectionError(''); socket.current?.connect(); }}>Retry connection</button></div>}</div></div>;
   const v = view, host = v.role === 'host';
   const link = siteUrl(`?join=${v.code}`);
   async function copyLink() { try { await navigator.clipboard.writeText(link); onError('Invite link copied.'); } catch { onError(`Invite players at ${link}`); } }
