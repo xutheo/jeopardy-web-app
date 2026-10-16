@@ -244,3 +244,19 @@ test('host kicks a lobby player and their client returns home',async({page:host,
  const context=await browser.newContext(),player=await context.newPage();await player.goto('/?join='+code);await player.getByRole('button',{name:'Find game'}).click();await player.getByLabel('Your name').fill('Guest');await player.getByRole('button',{name:'Join game'}).click();await expect(player.getByLabel('Switch team')).toBeVisible();
  await host.getByRole('button',{name:'Teams & players'}).click();await host.getByRole('button',{name:'Kick Guest',exact:true}).click();await expect(host.locator('.managed-player')).toHaveCount(0);await expect(player.getByRole('heading',{name:/Team Jeopardy/})).toBeVisible();await expect(player.getByRole('alert')).toContainText('The host removed you from the lobby.');await expect(host.getByText('0 players connected',{exact:true})).toBeVisible();await context.close();
 });
+
+test('editor supports independent five and six category boards', async ({page}) => {
+ await page.goto('/');await page.getByRole('button',{name:'Host a game',exact:true}).click();await page.getByRole('button',{name:'Create game'}).click();
+ await page.getByRole('button',{name:'Edit game boards'}).click();
+ await page.getByRole('button',{name:'Use sample questions'}).click();await page.getByRole('button',{name:'Use sample collection'}).click();
+ await expect(page.getByLabel('Categories on this board')).toHaveValue('6');
+ page.once('dialog',dialog=>dialog.accept());await page.getByLabel('Categories on this board').selectOption('5');
+ await expect(page.locator('.category-nav button')).toHaveCount(5);
+ await page.getByRole('button',{name:/Second board/}).click();await expect(page.getByLabel('Categories on this board')).toHaveValue('6');
+ await page.locator('.category-nav button').last().click();
+ await page.getByRole('button',{name:/First board/}).click();await expect(page.getByLabel('Category name',{exact:true})).toHaveValue('Around the World');
+ await page.getByRole('button',{name:'Save & close'}).click();await page.reload();await page.getByRole('button',{name:'Edit game boards'}).click();
+ await expect(page.getByLabel('Categories on this board')).toHaveValue('5');
+ await page.getByLabel('Categories on this board').selectOption('6');await expect(page.locator('.category-nav button')).toHaveCount(6);
+ await page.locator('.category-nav button').last().click();await expect(page.getByLabel('Category name',{exact:true})).toHaveValue('');
+});
