@@ -23,7 +23,7 @@ const rooms = new Map<string, Room>();
 const unavailable = new Map<string, string>();
 function roomFor(g: Game): Room { const r = { game: g, queue: Promise.resolve(), sockets: new Map(), error: null }; rooms.set(g.id, r); return r; }
 for (const id of await store.listIds()) {
-  try { const { game, warning } = await store.load(id); if (game.phase !== 'finished') { game.paused = game.phase !== 'lobby'; if (game.current) { game.current.deadline = null; if (game.current.group) game.current.group.runningSince = null; } game.finalDeadline = null; game.recovery = warning || 'Recovered from disk. Review the roster, then resume when everyone is ready.'; } else game.recovery = warning; roomFor(game); }
+  try { const { game, warning } = await store.load(id); if (game.phase !== 'finished') { game.paused = game.phase !== 'lobby'; if (game.current) { game.current.deadline = null; if (game.current.group) game.current.group.runningSince = null; if (game.current.pixel) game.current.pixel.runningSince = null; } game.finalDeadline = null; game.recovery = warning || 'Recovered from disk. Review the roster, then resume when everyone is ready.'; } else game.recovery = warning; roomFor(game); }
   catch (e: any) { unavailable.set(id, e.message); console.error(`Recovery failed for ${id}: ${e.message}`); }
 }
 const online = (r: Room) => new Set([...r.sockets.values()].filter(a => a.role === 'player').map(a => a.playerId!));
@@ -106,7 +106,7 @@ app.post('/api/import', async (req, res) => {
   const g = validateGame(req.body.game); const secret = token(); const fresh = newGame(secret, g.name);
   g.id = fresh.id; g.code = fresh.code; while ([...rooms.values()].some(r => r.game.code === g.code)) g.code = newGame(secret).code;
   g.hostHash = hash(secret); g.processed = {}; g.paused = g.phase !== 'lobby' && g.phase !== 'finished'; g.recovery = 'Backup restored as a new room. Players can join; use Claim saved player to restore their identity.';
-  if (g.current) { g.current.deadline = null; if (g.current.group) g.current.group.runningSince = null; } g.finalDeadline = null; for (const p of g.players) p.tokenHash = '';
+  if (g.current) { g.current.deadline = null; if (g.current.group) g.current.group.runningSince = null; if (g.current.pixel) g.current.pixel.runningSince = null; } g.finalDeadline = null; for (const p of g.players) p.tokenHash = '';
   await store.save(g); roomFor(g); res.json({ gameId: g.id, token: secret, role: 'host', name: g.name });
 });
 app.post('/api/games/:id/claim', async (req, res) => {
@@ -161,8 +161,8 @@ let ticking = false;
 const interval = setInterval(async () => {
   if (ticking) return; ticking = true;
   try { await Promise.all([...rooms.values()].map(r => {
-    if (r.error || r.game.paused || (r.game.current?.deadline == null && r.game.finalDeadline === null && r.game.current?.group?.runningSince == null)) return;
-    const now = performance.now(); return enqueue(r, async () => { if (r.error || r.game.paused || (r.game.current?.deadline == null && r.game.finalDeadline === null && r.game.current?.group?.runningSince == null)) return; const next = structuredClone(r.game); const before = `${next.phase}:${next.current?.state}`; advanceTimers(next, now); if (`${next.phase}:${next.current?.state}` !== before) next.version++; await commit(r, next); }).catch(console.error);
+    if (r.error || r.game.paused || (r.game.current?.deadline == null && r.game.finalDeadline === null && r.game.current?.group?.runningSince == null && r.game.current?.pixel?.runningSince == null)) return;
+    const now = performance.now(); return enqueue(r, async () => { if (r.error || r.game.paused || (r.game.current?.deadline == null && r.game.finalDeadline === null && r.game.current?.group?.runningSince == null && r.game.current?.pixel?.runningSince == null)) return; const next = structuredClone(r.game); const before = `${next.phase}:${next.current?.state}`; advanceTimers(next, now); if (`${next.phase}:${next.current?.state}` !== before) next.version++; await commit(r, next); }).catch(console.error);
   })); } finally { ticking = false; }
 }, 1000);
 const sweep = setInterval(() => { for (const [key, b] of attempts) if (Date.now() - b.since > 60000) attempts.delete(key); }, 60000);

@@ -63,6 +63,7 @@ function advanceBoard(g: Game) {
 export function timerRemaining(g: Game, now: number) {
   if (g.current?.deadline !== null && g.current?.deadline !== undefined) g.current.remainingMs = Math.max(0, g.current.deadline - now);
   if (g.finalDeadline !== null) g.finalRemainingMs = Math.max(0, g.finalDeadline - now);
+  if (g.current?.pixel?.runningSince != null) { const pixel = g.current.pixel; pixel.elapsedMs = Math.min(30000, pixel.elapsedMs + Math.max(0, now - pixel.runningSince!)); pixel.runningSince = pixel.elapsedMs < 30000 ? now : null; }
   if (g.current?.group?.runningSince != null) { const group = g.current.group; group.elapsedMs += Math.max(0, now - group.runningSince!); group.runningSince = now; }
 }
 export function advanceTimers(g: Game, now: number) {
@@ -75,6 +76,7 @@ export function pause(g: Game, now: number, reason: string | null = null) {
   advanceTimers(g, now); g.paused = true; g.recovery = reason;
   if (g.current) g.current.deadline = null;
   if (g.current?.group) g.current.group.runningSince = null;
+  if (g.current?.pixel) g.current.pixel.runningSince = null;
   g.finalDeadline = null;
 }
 function score(g: Game, teamId: string, amount: number, reason: string, playerId?: string) {
@@ -85,6 +87,7 @@ function score(g: Game, teamId: string, amount: number, reason: string, playerId
 }
 function complete(g: Game) { if (g.current) { g.current.state = 'resolved'; g.current.deadline = null; if (g.current.group) { g.current.group.runningSince = null; g.current.group.status = 'review'; } } }
 function completeContent(g: Game) {
+  requireRule(g.boards.every(b => b.every(c => !c.pixelPerfect || c.clues.every(q => !!q.image && q.kind !== 'group' && !q.boost))), 'Pixel Perfect categories need an image for every question and cannot contain group activities or Qoobee Boost.');
   requireRule(g.boards.every(b => b.every(c => c.title.trim() && c.clues.every(isClueReady))) && Object.values(g.final).every(s => s.trim()), 'Complete all clues, category titles, and Final Jeopardy. External activities need an HTTPS link; team puzzles need valid clues and a complete solution.');
 }
 export function applyCommand(g: Game, actor: Actor, command: Command, now: number, online: Set<string>) {
@@ -179,9 +182,11 @@ export function applyCommand(g: Game, actor: Actor, command: Command, now: numbe
       requireRule(g.phase === 'board' && !c, 'Return to the board before choosing a clue.');
       requireRule(Number.isInteger(p.category) && p.category >= 0 && p.category < g.boards[g.board].length && Number.isInteger(p.row) && p.row >= 0 && p.row < 5, 'Invalid clue.');
       const clue = g.boards[g.board][p.category].clues[p.row]; requireRule(!clue.used, 'That clue has already been played.');
+      requireRule(!g.boards[g.board][p.category].pixelPerfect || (!!clue.image && clue.kind !== 'group' && !clue.boost), 'Pixel Perfect requires an image and a normal buzzer question.');
       clue.used = true; g.undo = null; g.introCategory = null;
       requireRule(!(clue.kind === 'group' && clue.boost), 'Group activities cannot also be Qoobee Boost clues.');
       g.current = { id: randomUUID(), category: p.category, row: p.row, state: clue.kind === 'group' || clue.boost ? 'revealed' : g.boards[g.board][p.category].openToAll ? 'open' : 'restricted', representatives: { ...(g.nextRepresentatives ?? selectRepresentatives(g, online)) }, lockedTeams: [], winner: null, buzzId: null, previous: 'restricted', remainingMs: 10000, deadline: clue.kind === 'group' || clue.boost || g.boards[g.board][p.category].openToAll ? null : now + 10000, revealedAnswer: false,
+        ...(g.boards[g.board][p.category].pixelPerfect ? { pixel: { elapsedMs: 0, runningSince: now } } : {}),
         ...(clue.boost ? { boost: null } : {}), ...(clue.kind === 'group' ? { group: { status: 'ready', mode: clue.groupMode ?? 'time', elapsedMs: 0, runningSince: null, submissions: {}, awards: {} } } : {}) }; break;
     }
     case 'start-timer': requireRule(c?.state === 'revealed' && !c.group && !activeClue?.boost, 'The clue is not ready for a buzzer timer.'); c.state = 'restricted'; c.deadline = now + c.remainingMs; break;
@@ -319,6 +324,7 @@ export function applyCommand(g: Game, actor: Actor, command: Command, now: numbe
     case 'checkpoint': break;
     default: throw new Error('Unknown command.');
   }
+  if (g.current?.pixel) g.current.pixel.runningSince = !g.paused && !g.current.revealedAnswer && ['restricted', 'open'].includes(g.current.state) && g.current.pixel.elapsedMs < 30000 ? now : null;
   g.processed[command.id] = { actor: actorKey }; g.version++; return true;
 }
 

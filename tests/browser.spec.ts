@@ -260,3 +260,56 @@ test('editor supports independent five and six category boards', async ({page}) 
  await page.getByLabel('Categories on this board').selectOption('6');await expect(page.locator('.category-nav button')).toHaveCount(6);
  await page.locator('.category-nav button').last().click();await expect(page.getByLabel('Category name',{exact:true})).toHaveValue('');
 });
+
+test('Pixel Perfect editor and streamed reveal stay synchronized across reloads', async ({ page: host, browser }) => {
+  await host.goto('/'); await host.getByRole('button', { name: 'Host a game' }).click();
+  await host.getByRole('button', { name: 'Create game' }).click();
+  const code = (await host.locator('.room-badge strong').textContent())!;
+  await host.getByRole('button', { name: 'Edit game boards' }).click();
+  await host.getByRole('button', { name: 'Use sample questions' }).click();
+  await host.getByRole('button', { name: 'Use sample collection' }).click();
+  await host.locator('.category-nav button').nth(2).click();
+  await expect(host.getByLabel('Pixel Perfect — images sharpen every 5 seconds')).toBeChecked();
+  await host.getByRole('button', { name: 'Save & close' }).click();
+  const contexts = [];
+  try {
+    for (let i = 0; i < 2; i++) {
+      const context = await browser.newContext(); contexts.push(context);
+      const p = await context.newPage(); await p.goto('/?join=' + code);
+      await p.getByLabel('Your name').fill('Pix' + i);
+      await p.getByRole('button', { name: 'Join game' }).click();
+      await expect(p.getByRole('button', { name: /WAITING FOR HOST/ })).toBeVisible();
+    }
+    const popup = host.waitForEvent('popup');
+    await host.getByRole('link', { name: 'Open streamed board' }).click(); const stream = await popup;
+    await host.getByRole('button', { name: 'Let’s play' }).click(); await host.getByRole('button', { name: 'Continue to game', exact: true }).click();
+    for (let i = 0; i < 5; i++) await host.getByRole('button', { name: 'Next category', exact: true }).click();
+    await host.getByRole('button', { name: 'Show board', exact: true }).click();
+    await host.getByRole('button', { name: 'Pixel Perfect, 100 points', exact: true }).click();
+    const canvas = stream.locator('.pixel-image');
+    await expect(canvas).toHaveAttribute('data-pixel-stage', '0');
+    await expect.poll(() => canvas.evaluate((el: HTMLCanvasElement) => el.width)).toBeGreaterThan(0);
+    await expect.poll(() => canvas.evaluate((el: HTMLCanvasElement) => {
+      const ctx = el.getContext('2d')!;
+      const data = ctx.getImageData(0, 0, el.width, el.height).data;
+      const colors = new Set<string>();
+      for (let i = 0; i < data.length; i += 4) colors.add(data.slice(i, i + 4).join(','));
+      return colors.size;
+    })).toBeLessThanOrEqual(64);
+    await stream.screenshot({ path: 'artifacts/pixel-perfect-start.png' });
+    const first = await canvas.evaluate((el: HTMLCanvasElement) => el.toDataURL());
+    await expect(canvas).toHaveAttribute('data-pixel-stage', '1', { timeout: 8000 });
+    await expect.poll(() => canvas.evaluate((el: HTMLCanvasElement) => el.toDataURL())).not.toBe(first);
+    await host.getByRole('button', { name: /Pause/ }).click();
+    const stage = await canvas.getAttribute('data-pixel-stage');
+    await stream.reload(); await expect(stream.locator('.pixel-image')).toHaveAttribute('data-pixel-stage', stage!);
+    await expect(stream.getByText('Paused', { exact: true })).toBeVisible();
+    await host.getByRole('button', { name: /Resume game/ }).click();
+    await host.getByRole('button', { name: 'Close clue and reveal answer', exact: true }).click();
+    await expect(stream.locator('.pixel-image')).toHaveAttribute('data-pixel-stage', '6');
+    await expect(stream.locator('.stream-answer')).toHaveText('Qoobee');
+    await fs.mkdir('artifacts', { recursive: true });
+    await stream.screenshot({ path: 'artifacts/pixel-perfect.png' });
+    await stream.close();
+  } finally { await Promise.all(contexts.map(c => c.close())); }
+});

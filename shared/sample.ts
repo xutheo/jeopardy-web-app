@@ -1,3 +1,4 @@
+import { pixelSampleImages } from './sample-pixel-images.js';
 import { sampleBombLevels } from './sample-bombs.js';
 import { sampleImage } from './sample-image.js';
 import { samplePuzzle } from './puzzles.js';
@@ -39,5 +40,12 @@ export function allModesSampleContent(): Content {
   const questions = (board: number) => ({ title: 'Team Questions', openToAll: true, description: 'Everyone on every team can buzz immediately. Work together to answer these questions.', clues: packs[board ? 9 : 4][1].map(([prompt, answer]) => ({ prompt, answer, used: false })) });
   content.boards[0] = [...content.boards[0].slice(0,4), questions(0), content.boards[0][4]];
   content.boards[1] = [content.boards[1][0],content.boards[1][1],content.boards[1][2],content.boards[1][4],questions(1),{...content.boards[1][3],title:'Team Challenges'}];
+  const pixelCategory = (openToAll: boolean) => ({
+    title: openToAll ? 'Pixel Perfect — Team' : 'Pixel Perfect', pixelPerfect: true, openToAll,
+    description: 'Identify the image as it sharpens every five seconds.' + (openToAll ? ' Anyone on your team can buzz immediately.' : ' Selected players get the first ten seconds.'),
+    clues: ["Qoobee", "Piplup", "Jack-o'-lantern / jack o lantern / carved pumpkin", "Space Needle / Seattle Space Needle", "Mount Rainier / Mt. Rainier"].map((answer, i) => ({ prompt: 'Identify what is shown in this image.', answer, used: false, image: pixelSampleImages[i], imageAlt: 'Pixel Perfect mystery image' }))
+  });
+  content.boards[0][2] = pixelCategory(false);
+  content.boards[1][4] = pixelCategory(true);
   return content;
 }

@@ -430,3 +430,50 @@ test('sixth category opens and its answer remains private', () => {
  assert.equal(publicView(g,{role:'display'},online,0,null).boards[0][5].clues[4].answer,'');
  assert.ok(gameSchema.parse(g));
 });
+
+test('Pixel Perfect clock pauses on buzz and pause, resumes after wrong answers, and caps at 30s', () => {
+  const f = fixture();
+  const cat = f.g.boards[0][0]; cat.pixelPerfect = true;
+  cat.clues[0].image = 'data:image/png;base64,AAAA';
+  open(f);
+  f.command('checkpoint', {}, 6000);
+  assert.equal(f.g.current!.pixel!.elapsedMs, 5000);
+  const actor = representative(f.g);
+  f.command('buzz', { attemptId: f.g.current!.id }, 8000, actor);
+  assert.equal(f.g.current!.pixel!.elapsedMs, 7000);
+  assert.equal(f.g.current!.pixel!.runningSince, null);
+  f.command('judge', { buzzId: f.g.current!.buzzId, correct: false }, 20000);
+  assert.equal(f.g.current!.pixel!.elapsedMs, 7000);
+  f.command('pause', {}, 23000);
+  assert.equal(f.g.current!.pixel!.elapsedMs, 10000);
+  f.command('resume', {}, 40000);
+  f.command('checkpoint', {}, 45000);
+  assert.equal(f.g.current!.pixel!.elapsedMs, 15000);
+  assert.equal(f.g.current!.state, 'open');
+  f.command('checkpoint', {}, 65000);
+  assert.equal(f.g.current!.pixel!.elapsedMs, 30000);
+  assert.equal(f.g.current!.pixel!.runningSince, null);
+  assert.equal(gameSchema.parse(f.g).current!.pixel!.elapsedMs, 30000);
+  f.command('close-clue', {}, 66000);
+  assert.equal(f.g.current!.revealedAnswer, true);
+});
+
+test('Pixel Perfect supports whole-team buzzing and rejects missing images and incompatible modes', () => {
+  const f = fixture();
+  const cat = f.g.boards[0][0]; cat.pixelPerfect = true; cat.openToAll = true;
+  assert.throws(() => open(f), /requires an image/);
+  cat.clues[0].image = 'data:image/png;base64,AAAA';
+  cat.clues[0].boost = true;
+  assert.throws(() => open(f), /normal buzzer/);
+  cat.clues[0].boost = false;
+  open(f);
+  assert.equal(f.g.current!.state, 'open');
+  const player = f.g.players.find(p => p.id !== f.g.current!.representatives[p.teamId])!;
+  f.command('buzz', { attemptId: f.g.current!.id }, 6000, { role: 'player', playerId: player.id });
+  assert.equal(f.g.current!.winner, player.id);
+  assert.equal(f.g.current!.pixel!.elapsedMs, 5000);
+  f.command('judge', { buzzId: f.g.current!.buzzId, correct: true }, 7000);
+  assert.equal(f.g.current!.pixel!.runningSince, null);
+  const view = publicView(f.g, { role: 'display' }, f.online, 7000, null);
+  assert.equal(view.current!.revealedAnswer, true);
+});

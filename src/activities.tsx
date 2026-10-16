@@ -1,10 +1,11 @@
 import { PuzzleEditor, PuzzlePlayer, PuzzleResults } from './puzzles';
 import { samplePuzzle, type Puzzle } from '../shared/puzzles';
 import React, { useState } from 'react';
+import { PixelImage } from './pixel-image';
 import { BoostCelebration } from './boost';
 import { money, points, type ClueData, type View } from '../shared/model';
 type Props = { v: View; send: (type: string, payload?: unknown) => Promise<boolean>; disabled: boolean };
-export function ClueImage({ clue }: { clue: ClueData }) { return clue.image ? <img className="clue-image" src={clue.image} alt={clue.imageAlt || 'Question image'}/> : null; }
+export function ClueImage({ clue, v }: { clue: ClueData; v?: View }) { if (clue.image && v?.current?.pixel) return <PixelImage src={clue.image} elapsedMs={v.current.pixel.elapsedMs} revealed={v.current.revealedAnswer}/>; return clue.image ? <img className="clue-image" src={clue.image} alt={clue.imageAlt || 'Question image'}/> : null; }
 export function ClueOptions({ clue, update }: { clue: ClueData; update: (patch: Partial<ClueData>) => void }) {
   const [error, setError] = useState(''), [loading, setLoading] = useState(false);
   async function attach(file?: File) {

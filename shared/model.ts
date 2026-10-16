@@ -12,7 +12,7 @@ export const clueSchema = z.object({
 });
 export type ClueData = z.infer<typeof clueSchema>;
 export const isClueReady = (q: ClueData) => !!q.prompt.trim() && (q.kind === 'group' ? q.puzzle ? puzzleReady(q.puzzle) && !q.boost : !!q.link && gameLinkSchema.safeParse(q.link).success && !q.boost : !!q.answer.trim());
-export const categorySchema = z.object({ teamBased: z.boolean().optional(), openToAll: z.boolean().optional(), title: z.string().max(100), description: z.string().max(2000).optional(), clues: z.array(clueSchema).length(5) });
+export const categorySchema = z.object({ pixelPerfect: z.boolean().optional(), teamBased: z.boolean().optional(), openToAll: z.boolean().optional(), title: z.string().max(100), description: z.string().max(2000).optional(), clues: z.array(clueSchema).length(5) });
 export const boardSchema = z.array(categorySchema).min(5).max(6);
 export const contentSchema = z.object({
   name: z.string().trim().min(1).max(100), boards: z.array(boardSchema).length(2),
@@ -27,6 +27,7 @@ const currentSchema = z.object({
   representatives: z.record(z.string()), lockedTeams: z.array(z.string()),
   winner: z.string().nullable(), buzzId: z.string().nullable(), previous: z.enum(['restricted', 'open']),
   remainingMs: z.number().nonnegative().max(20000), deadline: z.number().nullable(), revealedAnswer: z.boolean(),
+  pixel: z.object({ elapsedMs: z.number().min(0).max(30000), runningSince: z.number().nullable() }).optional(),
   boost: z.object({ teamId: z.string(), wager: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER) }).nullable().optional(),
   group: z.object({
     puzzle: puzzleStateSchema.optional(), status: z.enum(['ready', 'playing', 'review']), mode: z.enum(['time', 'score']),

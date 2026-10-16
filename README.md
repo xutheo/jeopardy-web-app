@@ -249,3 +249,9 @@ After judging every team, select **Show final leaderboard** to display the winne
 New boards contain six categories and five clues per category (60 clues total). In the category editor, **Whole-team questions** marks a column with red borders on the streamed board. Regular questions in that category allow every active player to buzz immediately, with no representative-only countdown. The first buzz still wins, and an incorrect answer still locks that team out of the current clue. Qoobee Boost and group activities retain their own rules.
 
 The sample JSON places **Team Questions** fifth and **Team Challenges** sixth on both boards. Board one's final column contains the five Bomb Defusal levels; board two's contains the other team activities. Older five-category imports/saves remain supported without inserting questions into games already in progress. Load the updated sample file to replace a lobby's boards with six categories.
+
+### Pixel Perfect categories
+
+In the question editor, enable **Pixel Perfect — images sharpen every 5 seconds** for a category, then attach an image and enter the prompt and accepted answer for each of its five questions. Keep each question's type set to Question and leave Qoobee Boost off. Enable **Whole-team questions** for immediate buzzing by any teammate; otherwise the usual selected-player rotation and 10-second exclusive period apply.
+
+The host and streamed board show the same pixelated image. The longest edge starts at 8 pixels and increases to 12, 18, 27, 40, and 60 pixels at five-second intervals; after 30 seconds the original image is shown. Buzzing and pausing freeze the reveal. A wrong answer resumes it, and revealing the answer shows the original image immediately. Progress is saved with the game and retained across reconnects. Exported/imported categories preserve the `pixelPerfect: true` setting and embedded images.
