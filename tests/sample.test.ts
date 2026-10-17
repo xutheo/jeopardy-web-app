@@ -13,7 +13,7 @@ test('in-app samples include every game mode and a complete playable collection'
  assert.ok(content.boards.every(b=>b.some(c=>c.clues.some(q=>q.boost))));
  assert.equal(clues.length,60);assert.ok(clues.every(isClueReady));assert.ok(clues.some(q=>q.boost));assert.ok(clues.some(q=>!q.kind));
  for(const mode of ['time','score'])assert.ok(clues.some(q=>q.kind==='group'&&!q.puzzle&&q.groupMode===mode));
- for(const type of ['bomb','code','timeline'])assert.ok(clues.some(q=>q.puzzle?.type===type));
+ for(const type of ['bomb','code','timeline','relay'])assert.ok(clues.some(q=>q.puzzle?.type===type));
  const pixelCategories = content.boards.flat().filter(c => c.pixelPerfect);
  assert.equal(pixelCategories.length, 2);
  assert.ok(pixelCategories.some(c => c.openToAll)); assert.ok(pixelCategories.some(c => !c.openToAll));

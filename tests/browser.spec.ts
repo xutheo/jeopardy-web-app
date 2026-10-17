@@ -313,3 +313,30 @@ test('Pixel Perfect editor and streamed reveal stay synchronized across reloads'
     await stream.close();
   } finally { await Promise.all(contexts.map(c => c.close())); }
 });
+
+test('mental math relay broadcasts expressions and only final players submit without lockouts', async ({page:host,browser})=>{
+ await host.goto('/');await host.getByRole('button',{name:'Host a game'}).click();await host.getByRole('button',{name:'Create game'}).click();
+ const code=(await host.locator('.room-badge strong').textContent())!;
+ await host.getByRole('button',{name:'Edit game boards'}).click();await host.getByRole('button',{name:'Use sample questions'}).click();await host.getByRole('button',{name:'Use sample collection'}).click();
+ await expect(host.getByText('All changes saved',{exact:true})).toBeVisible();await host.getByLabel('Question type').first().selectOption('relay');await expect(host.getByRole('combobox',{name:'Difficulty',exact:true})).toBeVisible();await host.getByRole('button',{name:'Save & close'}).click();
+ const contexts=[];const players:Page[]=[];
+ try {
+  for(let i=0;i<4;i++){const ctx=await browser.newContext();contexts.push(ctx);const page=await ctx.newPage();players.push(page);await page.goto('/?join='+code);await page.getByLabel('Your name').fill('Math'+i);await page.getByRole('button',{name:'Join game'}).click();await page.getByLabel('Switch team').selectOption({index:Math.floor(i/2)});}
+  const popup=host.waitForEvent('popup');await host.getByRole('link',{name:'Open streamed board'}).click();const stream=await popup;
+  await host.getByRole('button',{name:'Let’s play'}).click();await host.getByRole('button',{name:'Continue to game',exact:true}).click();
+  for(let i=0;i<5;i++)await host.getByRole('button',{name:'Next category',exact:true}).click();await host.getByRole('button',{name:'Show board',exact:true}).click();
+  await host.getByRole('button',{name:'Around the World, 100 points',exact:true}).click();
+  await expect(stream.getByRole('heading',{name:'Mental Math Relay',exact:true})).toBeVisible();
+  for(const p of players)await expect(p.getByLabel('Final answer',{exact:true})).toHaveCount(0);
+  await host.getByRole('button',{name:'Broadcast clues & start'}).click();
+  for(const p of players)await expect(p.locator('.private-clue')).toHaveCount(1);
+  const submitters=[];for(const p of players)if(await p.getByLabel('Final answer',{exact:true}).count())submitters.push(p);
+  expect(submitters).toHaveLength(2);
+  const teamPanel=host.locator('.activity-team').first();const text=await teamPanel.textContent();const solution=text!.match(/Final answer: (\d+)/)![1];
+  const last=await players[0].getByLabel('Final answer',{exact:true}).count()?players[0]:players[1];
+  await last.getByLabel('Final answer',{exact:true}).fill('-999');await last.getByRole('button',{name:'Submit final answer'}).click();await expect(last.getByText(/Mistakes: 1/)).toBeVisible();await expect(last.getByRole('button',{name:'Submit final answer'})).toBeEnabled();
+  await last.getByLabel('Final answer',{exact:true}).fill(solution);await last.getByRole('button',{name:'Submit final answer'}).click();await expect(last.getByText('Team finished!',{exact:true})).toBeVisible();
+  await host.getByRole('button',{name:'End activity',exact:true}).click();await expect(stream.getByText('Fewest mistakes, then fastest time')).toBeVisible();
+  await stream.close();
+ }finally{await Promise.all(contexts.map(c=>c.close()));}
+});

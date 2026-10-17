@@ -235,3 +235,6 @@
 .stream-board{grid-template-columns:repeat(6,minmax(0,1fr))}
 .stream-column.open-team-category h2,.stream-column.open-team-category .stream-tile{border:2px solid #f27777}
 .stream-category-intro.open-team-intro{border-color:#f27777}
+
+.wire-5{--wire:#ffa44f}.wire-6{--wire:#f5f5f5}.wire-7{--wire:#f69bc8}
+.wire-8{--wire:#52dce5}.wire-9{--wire:#df5cde}.wire-10{--wire:#333333}.wire-11{--wire:#b58050}

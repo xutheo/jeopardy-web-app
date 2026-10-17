@@ -83,3 +83,126 @@ test('positive activity awards transfer category selection to the awarded team',
  const {g,cmd,payload}=setup('code');cmd('lock-group',payload,2000);
  const team=g.teams.find(t=>t.id!==g.selectorTeamId)!;cmd('award-group',{...payload,teamId:team.id,points:100,reason:'Winner'},3000);assert.equal(g.selectorTeamId,team.id);
 });
+
+test('bombs finish after the required subset; omitted wires are mistakes and timelines still need every event',()=>{
+ const {config,team,cmd,payload,actor}=setup('bomb');
+ config.solution=config.solution.slice(0,2);assert.ok(puzzleReady(config));
+ const omitted=config.items.find(x=>!config.solution.includes(x))!;
+ cmd('submit-puzzle',{...payload,item:omitted},2000,actor);
+ assert.equal(team.mistakes,1);assert.deepEqual(team.progress,[]);
+ cmd('submit-puzzle',{...payload,item:config.solution[0]},3000,actor);
+ assert.equal(team.finishedMs,null);
+ cmd('submit-puzzle',{...payload,item:config.solution[1]},4000,actor);
+ assert.equal(team.finishedMs,3000);assert.equal(team.progress.length,2);
+ assert.throws(()=>cmd('submit-puzzle',{...payload,item:omitted},5000,actor),/already finished/);
+ config.solution=[];assert.equal(puzzleReady(config),false);
+ const timeline=samplePuzzle('timeline');timeline.solution.pop();assert.equal(puzzleReady(timeline),false);
+});
+
+test('every bomb player including operator receives a clue even when only three clues exist',async()=>{
+ const {startPuzzle}=await import('../server/puzzles');
+ const {g,config}=setup('bomb');const teamId=g.teams[0].id;
+ const operator=g.current!.group!.puzzle!.teams[teamId].operator;
+ g.players.push({id:'extra',name:'Extra',teamId,tokenHash:hash('extra'),active:true,selections:0});
+ config.hints=['First clue','Second clue','Third clue'];
+ startPuzzle(g,g.current!.representatives);
+ let assignments=g.current!.group!.puzzle!.teams[teamId].assignments;
+ assert.equal(assignments[operator].length,1);
+ assert.deepEqual(new Set(Object.values(assignments).flat()),new Set(config.hints));
+ assert.ok(Object.entries(assignments).filter(([id])=>id!==operator).every(([,hints])=>hints.length===1));
+ config.hints.push('Fourth clue');startPuzzle(g,g.current!.representatives);
+ assignments=g.current!.group!.puzzle!.teams[teamId].assignments;
+ assert.ok(Object.values(assignments).every(hints=>hints.length===1));
+ assert.deepEqual(new Set(Object.values(assignments).flat()),new Set(config.hints));
+});
+
+test('bomb colors differ by team, survive saving, remain private, and validate mapped cuts',async()=>{
+ const {recolor}=await import('../server/bomb-colors');
+ const {g,config,cmd,payload,online}=setup('bomb');
+ const teams=g.current!.group!.puzzle!.teams;
+ const [a,b]=g.teams.map(t=>teams[t.id]);
+ assert.notDeepEqual(a.colors,b.colors);
+ const actor:Actor={role:'player',playerId:b.operator};
+ const own=publicView(g,actor,online,1000,null);
+ const visible=own.boards[0][0].clues[0].puzzle!;
+ assert.deepEqual([...visible.items].sort(),config.items.map(item=>recolor(item,b.colors!)).sort());
+ const allHints=Object.values(b.assignments).flat().sort();
+ assert.deepEqual(allHints,[...config.hints.map(hint=>recolor(hint,b.colors!))].sort());
+ assert.ok(Object.values(own.current!.group!.puzzle!.teams).every(t=>t.colors===undefined));
+ assert.deepEqual(own.current!.group!.puzzle!.teams[g.teams[0].id].assignments,{});
+ assert.deepEqual(validateGame(g).current!.group!.puzzle!.teams[g.teams[1].id].colors,b.colors);
+ const wrong=config.items.find(item=>item!==config.solution[0])!;
+ cmd('submit-puzzle',{...payload,item:recolor(wrong,b.colors!)},2000,actor);assert.equal(b.mistakes,1);
+ config.solution.forEach((item,i)=>cmd('submit-puzzle',{...payload,item:recolor(item,b.colors!)},3000+i*1000,actor));
+ assert.notEqual(b.finishedMs,null);
+ const after=publicView(g,actor,online,7000,null);
+ assert.deepEqual(after.current!.group!.puzzle!.teams[g.teams[1].id].progress,config.solution.map(item=>recolor(item,b.colors!)));
+ const display=publicView(g,{role:'display'},online,7000,null);
+ for(const t of Object.values(display.current!.group!.puzzle!.teams)){assert.equal(t.colors,undefined);assert.deepEqual(t.assignments,{});assert.deepEqual(t.progress,[]);}
+});
+
+test('color substitution is simultaneous and supports twelve distinct team mappings',async()=>{
+ const {recolor,teamColors}=await import('../server/bomb-colors');
+ assert.equal(recolor('Red before BLUE; redwood stays.',{red:'blue',blue:'red'}),'Blue before RED; redwood stays.');
+ const used=new Set<string>();
+ const mappings=Array.from({length:12},()=>teamColors(['Red ★','Red ●'],used));
+ assert.equal(new Set(mappings.map(m=>m.red)).size,12);
+});
+
+test('math relay sends private expressions, accepts only final player, tracks mistakes without lockout',()=>{
+ const {g,config,team,cmd,payload,actor,online}=setup('relay');
+ assert.ok(puzzleReady(config));assert.equal(team.relay!.order.length,3);
+ assert.equal(team.operator,team.relay!.order.at(-1));
+ assert.equal(Object.values(team.assignments).flat().length,3);
+ const other=g.players.find(p=>p.teamId===g.teams[0].id&&p.id!==team.operator)!;
+ assert.throws(()=>cmd('submit-puzzle',{...payload,answer:String(team.relay!.answer)},1500,{role:'player',playerId:other.id}),/operator/);
+ cmd('submit-puzzle',{...payload,answer:String(team.relay!.answer!+1)},2000,actor);
+ assert.equal(team.mistakes,1);assert.equal(team.lockedUntil,0);
+ cmd('submit-puzzle',{...payload,answer:String(team.relay!.answer)},2001,actor);
+ assert.equal(team.finishedMs,1001);
+ for(const role of [actor,{role:'player',playerId:other.id} as Actor,{role:'display'} as Actor]) {
+   const view=publicView(g,role,online,2001,null);
+   for(const state of Object.values(view.current!.group!.puzzle!.teams)) {
+     assert.equal(state.relay?.answer,undefined);
+     assert.ok(Object.keys(state.assignments).every(id=>id===role.playerId));
+   }
+ }
+ assert.deepEqual(validateGame(g).current!.group!.puzzle!.teams[g.teams[0].id].relay,team.relay);
+ assert.throws(()=>cmd('puzzle-operator',{...payload,teamId:g.teams[0].id,playerId:other.id},2002),/last relay/);
+ const second=g.current!.group!.puzzle!.teams[g.teams[1].id];
+ assert.notEqual(team.assignments[team.relay!.order[0]][0],second.assignments[second.relay!.order[0]][0]);
+});
+
+test('generated relay expressions evaluate to the server answer for different sizes and difficulties',async()=>{
+ const {makeRelay}=await import('../server/relay');
+ for(const count of [1,2,4,10,100])for(const difficulty of [1,2,3,4,5]) {
+   const relay=makeRelay(count,1,difficulty,['multiply','subtract','divide','add']);
+   let value=0;
+   for(const [i,expression] of relay.expressions.entries()) {
+     assert.doesNotMatch(expression, /[()]/);
+     const parts=expression.split(' ');
+     assert.equal((parts.length-1)/2,difficulty);
+     value=i===0?Number(parts[0]):value;
+     // Independently evaluate the generated numeric-only expression using JS precedence.
+     const arithmetic=[String(value),...parts.slice(1)].join(' ').replaceAll('×','*').replaceAll('÷','/').replaceAll('−','-');
+     assert.match(arithmetic,/^[0-9 +*/.-]+$/);
+     value=Function('return '+arithmetic)();
+     assert.ok(Number.isSafeInteger(value));assert.ok(value>0);
+   }
+   assert.equal(value,relay.answer);
+ }
+});
+
+test('relay uses PEMDAS and left-to-right for equal precedence',async()=>{
+ const {evaluateRelay}=await import('../server/relay');
+ assert.equal(evaluateRelay([2,3,4],['+','×']),14);
+ assert.equal(evaluateRelay([20,6,3],['−','÷']),18);
+ assert.equal(evaluateRelay([24,4,2],['÷','×']),12);
+ assert.equal(evaluateRelay([10,3,2],['−','+']),9);
+});
+
+test('fixed sample relays use the published questions and PEMDAS answers',async()=>{
+ const {fixedRelay}=await import('../server/relay');
+ const {sampleRelays}=await import('../shared/sample-relays');
+ assert.deepEqual(sampleRelays.map(expressions=>fixedRelay(expressions).answer),[19,13,44,74,18]);
+});

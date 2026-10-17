@@ -196,6 +196,7 @@ export function applyCommand(g: Game, actor: Actor, command: Command, now: numbe
     case 'submit-puzzle': submitPuzzle(g, player, p); break;
     case 'puzzle-operator': {
       requireRule(c?.group?.puzzle && p.attemptId === c.id, 'No puzzle is active.');
+      requireRule(activeClue?.puzzle?.type !== 'relay', 'Only the last relay player can submit.');
       const target = g.players.find(x => x.id === p.playerId && x.active && x.teamId === p.teamId);
       requireRule(target && c.group.puzzle.teams[p.teamId], 'Choose an active team member.');
       c.group.puzzle.teams[p.teamId].operator = target.id; break;

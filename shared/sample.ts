@@ -1,3 +1,4 @@
+import { sampleRelays } from './sample-relays';
 import { pixelSampleImages } from './sample-pixel-images.js';
 import { sampleBombLevels } from './sample-bombs.js';
 import { sampleImage } from './sample-image.js';
@@ -32,7 +33,7 @@ export function allModesSampleContent(): Content {
   // Keep the other activity modes available on board two.
   const activities = content.boards[0][4].clues;
   content.boards[1][3] = { title: 'Team Activities', teamBased: true, description: 'Race the clock, compare scores, crack codes, and put events in order.', clues: [activities[0], activities[1], activities[3], activities[4], { ...activities[1], linkLabel: 'Fewest attempts', scoreOrder: 'lower', prompt: 'Submit your attempt count from 1 to 6. Fewer attempts rank higher; the host awards team points.' }] };
-  content.boards[0][4] = { title: 'Team Challenges', teamBased: true, description: 'Five bomb modules, from beginner to expert. Combine your private clues and cut every wire in order.', clues: sampleBombLevels().map(puzzle => ({ prompt: puzzle.message, answer: '', used: false, kind: 'group', groupMode: 'time', linkLabel: 'Bomb defusal', puzzle })) };
+  content.boards[0][4] = { title: 'Team Challenges', teamBased: true, description: 'Five bomb modules, from beginner to expert. Combine your private clues and identify which wires to cut and which to leave intact.', clues: sampleBombLevels().map(puzzle => ({ prompt: puzzle.message, answer: '', used: false, kind: 'group', groupMode: 'time', linkLabel: 'Bomb defusal', puzzle })) };
   content.boards[0][1].clues[3].boost = true;
   content.boards[0][1].clues[4] = { prompt: 'How many triangles are shown in this image?', answer: '3 / Three', used: false, image: sampleImage, imageAlt: 'Three gold triangles on a blue background' };
   content.boards[1][2].clues[4] = { prompt: 'Open the practice link and submit a number from 1 to 6 as your attempt count. Fewer attempts rank higher. The host chooses which team receives points.', answer: '', used: false, kind: 'group', groupMode: 'score', scoreOrder: 'lower', linkLabel: 'Fewest attempts', link: 'https://example.com' };
@@ -47,5 +48,6 @@ export function allModesSampleContent(): Content {
   });
   content.boards[0][2] = pixelCategory(false);
   content.boards[1][4] = pixelCategory(true);
+  content.boards[1][2] = {title:'Mental Math Relay',teamBased:true,description:'Pass answers along your team. Only the last player submits. Fewest mistakes wins, with completion time breaking ties.',clues:[1,2,3,4,5].map(level=>({prompt:'Complete the mental math relay.',answer:'',used:false,kind:'group',groupMode:'time',linkLabel:'Mental Math Relay',puzzle:{...samplePuzzle('relay'),relayDifficulty:level,relayExpressions:sampleRelays[level-1]}}))};
   return content;
 }

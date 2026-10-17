@@ -1,12 +1,33 @@
 import type { Puzzle } from './puzzles';
 
 export function sampleBombLevels(): Puzzle[] {
-  const make = (level: string, items: string[], solution: string[], hints: string[]): Puzzle => ({ type: 'bomb', message: `${level}: cut all ${items.length} wires in the correct order.`, items, solution, hints, answers: [] });
+  const make = (level: string, items: string[], solution: string[], hints: string[]): Puzzle => ({ type: 'bomb', message: `${level}: use your team's clues to determine which wires to cut and in what order. Wires not required by the solution must remain intact.`, items, solution, hints, answers: [] });
   return [
-    make('Beginner', ['Red ★', 'Blue ●', 'Yellow ▲'], ['Blue ●', 'Red ★', 'Yellow ▲'], ['Cut the circle first.', 'Cut the star second.', 'Cut the triangle last.']),
-    make('Easy', ['Red ★', 'Blue ●', 'Yellow ▲', 'Green ■'], ['Green ■', 'Yellow ▲', 'Blue ●', 'Red ★'], ['The square is first.', 'The triangle comes immediately after the square.', 'The circle comes immediately before the star.', 'The star is last.']),
-    make('Intermediate', ['Red ★', 'Blue ●', 'Yellow ▲', 'Green ■', 'Purple ◆'], ['Yellow ▲', 'Purple ◆', 'Red ★', 'Green ■', 'Blue ●'], ['The triangle is first and the circle is last.', 'The diamond comes before the star.', 'The star comes before the square.', 'The square comes before the circle.']),
-    make('Hard', ['Red ★', 'Blue ●', 'Yellow ▲', 'Green ■', 'Purple ◆', 'Orange ☀'], ['Purple ◆', 'Blue ●', 'Orange ☀', 'Yellow ▲', 'Red ★', 'Green ■'], ['The diamond is first. The square is last.', 'The circle is immediately before the sun.', 'Exactly one wire is cut between the sun and the star.', 'The triangle is immediately before the star.']),
-    make('Expert', ['Red ★', 'Blue ●', 'Yellow ▲', 'Green ■', 'Purple ◆', 'Orange ☀', 'White ✚'], ['Orange ☀', 'Green ■', 'Purple ◆', 'White ✚', 'Blue ●', 'Red ★', 'Yellow ▲'], ['The cross is fourth. The triangle is last.', 'The sun is before the square, and both are before the diamond.', 'The diamond is before the cross. The circle is after the cross.', 'The star is immediately after the circle.'])
+    make('Beginner — Find the order', ['Green ■', 'Red ★', 'Yellow ▲'], ['Red ★', 'Green ■', 'Yellow ▲'], [
+      'The green wire is not cut first.',
+      'The star wire is cut immediately before the square wire.',
+      'The yellow wire is cut last.'
+    ]),
+    make('Easy — Leave one intact', ['Red ★', 'Blue ●', 'Yellow ▲', 'Green ■'], ['Blue ●', 'Red ★', 'Yellow ▲'], [
+      'Any wire not mentioned in other clues should not be cut at all.',
+      'The circle is cut immediately before the red wire.',
+      'The triangle is the last wire cut.'
+    ]),
+    make('Intermediate — Build the chain', ['Red ★', 'Blue ◆', 'Yellow ▲', 'Green ■'], ['Green ■', 'Yellow ▲', 'Blue ◆'], [
+      'Only the convex polygons will be cut.',
+      'The green wire is cut before the diamond wire.',
+      'The triangle wire is cut second.'
+    ]),
+    make('Hard — Choose the safe set', ['Red ★', 'Blue ●', 'Yellow ▲', 'Green ■', 'Purple ◆'], ['Yellow ▲', 'Green ■', 'Blue ●'], [
+      'Exactly three wires must be cut.',
+      'The star and the purple wire must either both be cut or both remain intact.',
+      'The yellow wire is the first wire cut, and the circle is the last wire cut.',
+      'The square is cut immediately after the triangle and immediately before the blue wire.'
+    ]),
+    make('Expert — Shapes and sequence', ['Red ★', 'Blue ●', 'Yellow ▲', 'Green ■', 'Purple ◆'], ['Purple ◆', 'Red ★', 'Green ■', 'Blue ●'], [
+      'The red wire must be cut immediately after one four-sided shape and immediately before the other.',
+      'Do not cut any polygon with an odd number of sides.',
+      'Cut the shape with the most lines of symmetry immediately after the green wire.'
+    ])
   ];
 }

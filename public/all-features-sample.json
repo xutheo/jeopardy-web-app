@@ -176,10 +176,10 @@
       {
         "title": "Team Challenges",
         "teamBased": true,
-        "description": "Five bomb modules, from beginner to expert. Combine your private clues and cut every wire in order.",
+        "description": "Five bomb modules, from beginner to expert. Combine your private clues and identify which wires to cut and which to leave intact.",
         "clues": [
           {
-            "prompt": "Beginner: cut all 3 wires in the correct order.",
+            "prompt": "Beginner — Find the order: use your team's clues to determine which wires to cut and in what order. Wires not required by the solution must remain intact.",
             "answer": "",
             "used": false,
             "kind": "group",
@@ -187,27 +187,27 @@
             "linkLabel": "Bomb defusal",
             "puzzle": {
               "type": "bomb",
-              "message": "Beginner: cut all 3 wires in the correct order.",
+              "message": "Beginner — Find the order: use your team's clues to determine which wires to cut and in what order. Wires not required by the solution must remain intact.",
               "items": [
+                "Green ■",
                 "Red ★",
-                "Blue ●",
                 "Yellow ▲"
               ],
               "solution": [
-                "Blue ●",
                 "Red ★",
+                "Green ■",
                 "Yellow ▲"
               ],
               "hints": [
-                "Cut the circle first.",
-                "Cut the star second.",
-                "Cut the triangle last."
+                "The green wire is not cut first.",
+                "The star wire is cut immediately before the square wire.",
+                "The yellow wire is cut last."
               ],
               "answers": []
             }
           },
           {
-            "prompt": "Easy: cut all 4 wires in the correct order.",
+            "prompt": "Easy — Leave one intact: use your team's clues to determine which wires to cut and in what order. Wires not required by the solution must remain intact.",
             "answer": "",
             "used": false,
             "kind": "group",
@@ -215,7 +215,7 @@
             "linkLabel": "Bomb defusal",
             "puzzle": {
               "type": "bomb",
-              "message": "Easy: cut all 4 wires in the correct order.",
+              "message": "Easy — Leave one intact: use your team's clues to determine which wires to cut and in what order. Wires not required by the solution must remain intact.",
               "items": [
                 "Red ★",
                 "Blue ●",
@@ -223,22 +223,20 @@
                 "Green ■"
               ],
               "solution": [
-                "Green ■",
-                "Yellow ▲",
                 "Blue ●",
-                "Red ★"
+                "Red ★",
+                "Yellow ▲"
               ],
               "hints": [
-                "The square is first.",
-                "The triangle comes immediately after the square.",
-                "The circle comes immediately before the star.",
-                "The star is last."
+                "Any wire not mentioned in other clues should not be cut at all.",
+                "The circle is cut immediately before the red wire.",
+                "The triangle is the last wire cut."
               ],
               "answers": []
             }
           },
           {
-            "prompt": "Intermediate: cut all 5 wires in the correct order.",
+            "prompt": "Intermediate — Build the chain: use your team's clues to determine which wires to cut and in what order. Wires not required by the solution must remain intact.",
             "answer": "",
             "used": false,
             "kind": "group",
@@ -246,7 +244,36 @@
             "linkLabel": "Bomb defusal",
             "puzzle": {
               "type": "bomb",
-              "message": "Intermediate: cut all 5 wires in the correct order.",
+              "message": "Intermediate — Build the chain: use your team's clues to determine which wires to cut and in what order. Wires not required by the solution must remain intact.",
+              "items": [
+                "Red ★",
+                "Blue ◆",
+                "Yellow ▲",
+                "Green ■"
+              ],
+              "solution": [
+                "Green ■",
+                "Yellow ▲",
+                "Blue ◆"
+              ],
+              "hints": [
+                "Only the convex polygons will be cut.",
+                "The green wire is cut before the diamond wire.",
+                "The triangle wire is cut second."
+              ],
+              "answers": []
+            }
+          },
+          {
+            "prompt": "Hard — Choose the safe set: use your team's clues to determine which wires to cut and in what order. Wires not required by the solution must remain intact.",
+            "answer": "",
+            "used": false,
+            "kind": "group",
+            "groupMode": "time",
+            "linkLabel": "Bomb defusal",
+            "puzzle": {
+              "type": "bomb",
+              "message": "Hard — Choose the safe set: use your team's clues to determine which wires to cut and in what order. Wires not required by the solution must remain intact.",
               "items": [
                 "Red ★",
                 "Blue ●",
@@ -256,88 +283,45 @@
               ],
               "solution": [
                 "Yellow ▲",
+                "Green ■",
+                "Blue ●"
+              ],
+              "hints": [
+                "Exactly three wires must be cut.",
+                "The star and the purple wire must either both be cut or both remain intact.",
+                "The yellow wire is the first wire cut, and the circle is the last wire cut.",
+                "The square is cut immediately after the triangle and immediately before the blue wire."
+              ],
+              "answers": []
+            }
+          },
+          {
+            "prompt": "Expert — Shapes and sequence: use your team's clues to determine which wires to cut and in what order. Wires not required by the solution must remain intact.",
+            "answer": "",
+            "used": false,
+            "kind": "group",
+            "groupMode": "time",
+            "linkLabel": "Bomb defusal",
+            "puzzle": {
+              "type": "bomb",
+              "message": "Expert — Shapes and sequence: use your team's clues to determine which wires to cut and in what order. Wires not required by the solution must remain intact.",
+              "items": [
+                "Red ★",
+                "Blue ●",
+                "Yellow ▲",
+                "Green ■",
+                "Purple ◆"
+              ],
+              "solution": [
                 "Purple ◆",
                 "Red ★",
                 "Green ■",
                 "Blue ●"
               ],
               "hints": [
-                "The triangle is first and the circle is last.",
-                "The diamond comes before the star.",
-                "The star comes before the square.",
-                "The square comes before the circle."
-              ],
-              "answers": []
-            }
-          },
-          {
-            "prompt": "Hard: cut all 6 wires in the correct order.",
-            "answer": "",
-            "used": false,
-            "kind": "group",
-            "groupMode": "time",
-            "linkLabel": "Bomb defusal",
-            "puzzle": {
-              "type": "bomb",
-              "message": "Hard: cut all 6 wires in the correct order.",
-              "items": [
-                "Red ★",
-                "Blue ●",
-                "Yellow ▲",
-                "Green ■",
-                "Purple ◆",
-                "Orange ☀"
-              ],
-              "solution": [
-                "Purple ◆",
-                "Blue ●",
-                "Orange ☀",
-                "Yellow ▲",
-                "Red ★",
-                "Green ■"
-              ],
-              "hints": [
-                "The diamond is first. The square is last.",
-                "The circle is immediately before the sun.",
-                "Exactly one wire is cut between the sun and the star.",
-                "The triangle is immediately before the star."
-              ],
-              "answers": []
-            }
-          },
-          {
-            "prompt": "Expert: cut all 7 wires in the correct order.",
-            "answer": "",
-            "used": false,
-            "kind": "group",
-            "groupMode": "time",
-            "linkLabel": "Bomb defusal",
-            "puzzle": {
-              "type": "bomb",
-              "message": "Expert: cut all 7 wires in the correct order.",
-              "items": [
-                "Red ★",
-                "Blue ●",
-                "Yellow ▲",
-                "Green ■",
-                "Purple ◆",
-                "Orange ☀",
-                "White ✚"
-              ],
-              "solution": [
-                "Orange ☀",
-                "Green ■",
-                "Purple ◆",
-                "White ✚",
-                "Blue ●",
-                "Red ★",
-                "Yellow ▲"
-              ],
-              "hints": [
-                "The cross is fourth. The triangle is last.",
-                "The sun is before the square, and both are before the diamond.",
-                "The diamond is before the cross. The circle is after the cross.",
-                "The star is immediately after the circle."
+                "The red wire must be cut immediately after one four-sided shape and immediately before the other.",
+                "Do not cut any polygon with an odd number of sides.",
+                "Cut the shape with the most lines of symmetry immediately after the green wire."
               ],
               "answers": []
             }
@@ -409,40 +393,156 @@
         "description": "Test your team’s knowledge of natural wonders."
       },
       {
-        "title": "Word Play",
+        "title": "Mental Math Relay",
+        "teamBased": true,
+        "description": "Pass answers along your team. Only the last player submits. Fewest mistakes wins, with completion time breaking ties.",
         "clues": [
           {
-            "prompt": "This punctuation mark ends a direct question.",
-            "answer": "Question mark",
-            "used": false
-          },
-          {
-            "prompt": "This term describes a word that reads the same forward and backward.",
-            "answer": "Palindrome",
-            "used": false
-          },
-          {
-            "prompt": "These words sound alike but have different meanings, such as sea and see.",
-            "answer": "Homophones",
-            "used": false
-          },
-          {
-            "prompt": "This figure of speech uses like or as to compare two things.",
-            "answer": "Simile",
-            "used": false
-          },
-          {
-            "prompt": "Open the practice link and submit a number from 1 to 6 as your attempt count. Fewer attempts rank higher. The host chooses which team receives points.",
+            "prompt": "Complete the mental math relay.",
             "answer": "",
             "used": false,
             "kind": "group",
-            "groupMode": "score",
-            "scoreOrder": "lower",
-            "linkLabel": "Fewest attempts",
-            "link": "https://example.com"
+            "groupMode": "time",
+            "linkLabel": "Mental Math Relay",
+            "puzzle": {
+              "type": "relay",
+              "message": "Pass each answer to the next teammate. Only the final player submits.",
+              "relayDifficulty": 1,
+              "relayOperations": [
+                "multiply",
+                "subtract",
+                "divide",
+                "add"
+              ],
+              "items": [],
+              "solution": [],
+              "answers": [],
+              "hints": [],
+              "relayExpressions": [
+                "4 + 2",
+                "__ × 4",
+                "__ − 5",
+                "__ ÷ 1"
+              ]
+            }
+          },
+          {
+            "prompt": "Complete the mental math relay.",
+            "answer": "",
+            "used": false,
+            "kind": "group",
+            "groupMode": "time",
+            "linkLabel": "Mental Math Relay",
+            "puzzle": {
+              "type": "relay",
+              "message": "Pass each answer to the next teammate. Only the final player submits.",
+              "relayDifficulty": 2,
+              "relayOperations": [
+                "multiply",
+                "subtract",
+                "divide",
+                "add"
+              ],
+              "items": [],
+              "solution": [],
+              "answers": [],
+              "hints": [],
+              "relayExpressions": [
+                "5 + 3 − 5",
+                "__ × 6 − 4",
+                "__ − 8 ÷ 4",
+                "__ ÷ 3 + 9"
+              ]
+            }
+          },
+          {
+            "prompt": "Complete the mental math relay.",
+            "answer": "",
+            "used": false,
+            "kind": "group",
+            "groupMode": "time",
+            "linkLabel": "Mental Math Relay",
+            "puzzle": {
+              "type": "relay",
+              "message": "Pass each answer to the next teammate. Only the final player submits.",
+              "relayDifficulty": 3,
+              "relayOperations": [
+                "multiply",
+                "subtract",
+                "divide",
+                "add"
+              ],
+              "items": [],
+              "solution": [],
+              "answers": [],
+              "hints": [],
+              "relayExpressions": [
+                "6 + 6 − 3 ÷ 3",
+                "__ × 3 − 5 ÷ 5",
+                "__ − 6 ÷ 3 + 4",
+                "__ ÷ 2 + 3 × 9"
+              ]
+            }
+          },
+          {
+            "prompt": "Complete the mental math relay.",
+            "answer": "",
+            "used": false,
+            "kind": "group",
+            "groupMode": "time",
+            "linkLabel": "Mental Math Relay",
+            "puzzle": {
+              "type": "relay",
+              "message": "Pass each answer to the next teammate. Only the final player submits.",
+              "relayDifficulty": 4,
+              "relayOperations": [
+                "multiply",
+                "subtract",
+                "divide",
+                "add"
+              ],
+              "items": [],
+              "solution": [],
+              "answers": [],
+              "hints": [],
+              "relayExpressions": [
+                "7 + 8 − 6 ÷ 3 + 5",
+                "__ × 9 − 5 ÷ 5 + 4",
+                "__ − 9 ÷ 9 + 4 × 4",
+                "__ ÷ 6 + 6 × 8 − 4"
+              ]
+            }
+          },
+          {
+            "prompt": "Complete the mental math relay.",
+            "answer": "",
+            "used": false,
+            "kind": "group",
+            "groupMode": "time",
+            "linkLabel": "Mental Math Relay",
+            "puzzle": {
+              "type": "relay",
+              "message": "Pass each answer to the next teammate. Only the final player submits.",
+              "relayDifficulty": 5,
+              "relayOperations": [
+                "multiply",
+                "subtract",
+                "divide",
+                "add"
+              ],
+              "items": [],
+              "solution": [],
+              "answers": [],
+              "hints": [],
+              "relayExpressions": [
+                "8 + 6 − 4 ÷ 4 + 3 × 2",
+                "__ × 2 − 8 ÷ 2 + 9 × 2",
+                "__ − 6 ÷ 3 + 5 × 7 − 7",
+                "__ ÷ 6 + 2 × 4 − 9 ÷ 3"
+              ]
+            }
           }
-        ],
-        "description": "Test your team’s knowledge of word play."
+        ]
       },
       {
         "title": "Numbers Game",
