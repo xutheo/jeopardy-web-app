@@ -16,8 +16,10 @@ export function startPuzzle(g: Game, representatives: Record<string,string>) {
     if (config.type === 'relay') {
       const order = members.map(p => p.id);
       for(let i=order.length-1;i>0;i--){const j=randomInt(i+1);[order[i],order[j]]=[order[j],order[i]];}
+      const membersInOrder = [...order];
+      while (order.length < 4) order.push(membersInOrder[order.length % membersInOrder.length]);
       const generated = config.relayExpressions && order.length === 4 && Object.keys(group.puzzle.teams).length === 0 ? fixedRelay(config.relayExpressions) : makeRelay(order.length, Object.keys(group.puzzle.teams).length, config.relayDifficulty || 2, config.relayOperations || ['multiply','subtract','divide','add']);
-      order.forEach((id,i) => assignments[id] = [generated.expressions[i]]);
+      order.forEach((id,i) => assignments[id].push(generated.expressions[i]));
       group.puzzle.teams[team.id] = { operator: order[order.length-1], assignments, relay: {order,answer:generated.answer}, mistakes:0,progress:[],finishedMs:null,lockedUntil:0 };
       continue;
     }

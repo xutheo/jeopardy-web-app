@@ -477,3 +477,32 @@ test('Pixel Perfect supports whole-team buzzing and rejects missing images and i
   const view = publicView(f.g, { role: 'display' }, f.online, 7000, null);
   assert.equal(view.current!.revealedAnswer, true);
 });
+
+test('host collects private answers from all teams and awards points manually',()=>{
+ const f=fixture(2),{g,command,online}=f;g.boards[0][0].openToAll=true;open(f);
+ const attemptId=g.current!.id,player={role:'player' as const,playerId:g.players[0].id};
+ assert.throws(()=>command('collect-team-answers',{},1100,player));
+ command('collect-team-answers',{},1100);
+ assert.equal(g.current!.group!.teamAnswers,true);
+ for(const p of g.players) command('submit-group',{attemptId,score:'answer '+p.id},1200,{role:'player',playerId:p.id});
+ assert.equal(Object.keys(g.current!.group!.submissions).length,4);
+ assert.throws(()=>command('buzz',{attemptId},1300,player));
+ command('lock-group',{attemptId},1400);
+ assert.deepEqual(publicView(g,{role:'display'},online,1400,null).current!.group!.submissions,{});
+ assert.equal(Object.keys(publicView(g,player,online,1400,null).current!.group!.submissions).length,1);
+ assert.throws(()=>command('submit-group',{attemptId,score:'late'},1500,player));
+ command('award-group',{attemptId,teamId:g.teams[0].id,points:75,reason:'Manual answer'},1500);
+ assert.equal(g.teams[0].score,75);
+ command('reveal',{},1600);assert.equal(g.current!.revealedAnswer,true);
+ command('undo-end-group',{attemptId},1700);assert.equal(g.current!.revealedAnswer,false);
+ assert.ok(gameSchema.safeParse(g).success);
+});
+
+test('host can skip remaining clues to next board and final',()=>{
+ const {g,command}=fixture();
+ assert.throws(()=>command('advance-board'));
+ assert.throws(()=>command('advance-board',{skip:true},0,{role:'player',playerId:g.players[0].id}));
+ command('advance-board',{skip:true});assert.equal(g.board,1);assert.equal(g.introCategory,0);
+ assert.ok(g.boards[0].every(c=>c.clues.every(q=>q.used)));
+ command('advance-board',{skip:true});assert.equal(g.phase,'final-wager');
+});

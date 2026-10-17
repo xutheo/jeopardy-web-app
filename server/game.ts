@@ -190,6 +190,11 @@ export function applyCommand(g: Game, actor: Actor, command: Command, now: numbe
         ...(clue.boost ? { boost: null } : {}), ...(clue.kind === 'group' ? { group: { status: 'ready', mode: clue.groupMode ?? 'time', elapsedMs: 0, runningSince: null, submissions: {}, awards: {} } } : {}) }; break;
     }
     case 'start-timer': requireRule(c?.state === 'revealed' && !c.group && !activeClue?.boost, 'The clue is not ready for a buzzer timer.'); c.state = 'restricted'; c.deadline = now + c.remainingMs; break;
+    case 'collect-team-answers':
+      requireRule(g.phase === 'board' && c && !c.group && !activeClue?.boost && g.boards[g.board][c.category].openToAll && ['open','restricted','revealed'].includes(c.state), 'Choose an unanswered whole-team question first.');
+      c.state = 'revealed'; c.deadline = null; c.winner = null; c.buzzId = null; g.undo = null;
+      c.group = {teamAnswers:true,status:'playing',mode:'score',elapsedMs:0,runningSince:now,submissions:{},awards:{}};
+      break;
     case 'start-group':
       requireRule(c?.group?.status === 'ready' && c.state === 'revealed' && p.attemptId === c.id, 'This activity is not ready.');
       if (activeClue?.puzzle) startPuzzle(g, c.representatives); c.group.status = 'playing'; c.group.runningSince = now; break;
@@ -218,7 +223,7 @@ export function applyCommand(g: Game, actor: Actor, command: Command, now: numbe
     }
     case 'undo-end-group':
       requireRule(c?.group?.status === 'review' && c.state !== 'resolved' && p.attemptId === c.id, 'No ended activity to resume.');
-      c.group.status = 'playing'; c.group.runningSince = now; break;
+      c.group.status = 'playing'; c.group.runningSince = now; if(c.group.teamAnswers) c.revealedAnswer = false; break;
     case 'lock-group':
       requireRule(c?.group?.status === 'playing' && c.state !== 'resolved' && p.attemptId === c.id, 'No open group activity.');
       c.group.status = 'review'; c.group.runningSince = null; break;
@@ -277,13 +282,13 @@ export function applyCommand(g: Game, actor: Actor, command: Command, now: numbe
     }
     case 'unfinish-activity': requireRule(c?.group && c.state === 'resolved' && p.attemptId === c.id, 'No finished activity to reopen.'); c.state = 'revealed'; c.group.status = 'review'; c.group.runningSince = null; g.undo = null; break;
     case 'close-clue': requireRule(c && c.state !== 'resolved', 'No active clue.'); complete(g); if (!c.group) c.revealedAnswer = true; g.undo = null; break;
-    case 'reveal': requireRule(c?.state === 'resolved' && !c.group, 'Close a question before revealing the answer.'); c.revealedAnswer = true; g.undo = null; break;
+    case 'reveal': requireRule(c?.state === 'resolved' && !c.group || c?.group?.teamAnswers && c.group.status === 'review', 'Close a question before revealing the answer.'); c.revealedAnswer = true; g.undo = null; break;
     case 'return-board': requireRule(c?.state === 'resolved' || c?.group?.status === 'review', 'Finish this clue first.'); g.current = null; g.undo = null; if (g.boards[g.board].every(cat => cat.clues.every(q => q.used))) advanceBoard(g); if (g.phase === 'board') g.nextRepresentatives = selectRepresentatives(g, online); else g.nextRepresentatives = {}; break;
     case 'advance-board':
       requireRule(g.phase === 'board' && !c, 'Return to the board first.');
       requireRule(g.boards[g.board].every(cat => cat.clues.every(q => q.used)) || p.skip === true, 'There are still unplayed clues. Confirm ending this board early.');
       for (const cat of g.boards[g.board]) for (const q of cat.clues) q.used = true;
-      advanceBoard(g); break;
+      g.instructionsVisible = false; g.undo = null; advanceBoard(g); if (g.phase === 'board') g.nextRepresentatives = selectRepresentatives(g, online); break;
     case 'wager': {
       requireRule(g.phase === 'final-wager' && player && g.teams.find(t => t.id === player.teamId)?.captain === player.id, 'Only the team captain can submit the wager.');
       const e = g.finalEntries[player.teamId]; requireRule(Number.isInteger(p.amount) && p.amount >= 0 && p.amount <= Math.max(2000, e.score), 'Wager must be between zero and the greater of 2000 or your team score.'); e.wager = p.amount; break;
@@ -348,7 +353,7 @@ export function publicView(g: Game, actor: Actor, online: Set<string>, now: numb
   }
   if (actor.role !== 'host' && view.current?.group) {
     const group = view.current.group;
-    if (!(actor.role === 'display' && group.status === 'review')) group.submissions = actor.playerId && group.submissions[actor.playerId] ? { [actor.playerId]: group.submissions[actor.playerId] } : {};
+    if (!(actor.role === 'display' && group.status === 'review' && !group.teamAnswers)) group.submissions = actor.playerId && group.submissions[actor.playerId] ? { [actor.playerId]: group.submissions[actor.playerId] } : {};
   }
   const ownTeam = g.players.find(p => p.id === actor.playerId)?.teamId;
   for (const [teamId, e] of Object.entries(view.finalEntries)) {

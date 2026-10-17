@@ -6,10 +6,10 @@ import { sampleContent } from '../shared/sample';
 import { samplePuzzle, puzzleReady, type Puzzle } from '../shared/puzzles';
 import { validateGame } from '../server/storage';
 import type { Actor } from '../shared/model';
-function setup(type: Puzzle['type']) {
+function setup(type: Puzzle['type'], playersPerTeam = 3) {
  const g=newGame('secret'); Object.assign(g,sampleContent()); const config=samplePuzzle(type);
  Object.assign(g.boards[0][0].clues[0],{kind:'group',groupMode:'time',puzzle:config});
- g.teams.forEach((t,ti)=>{for(let i=0;i<3;i++)g.players.push({id:`p${ti}${i}`,name:`p${ti}${i}`,teamId:t.id,tokenHash:hash(`p${ti}${i}`),active:true,selections:0});});
+ g.teams.forEach((t,ti)=>{for(let i=0;i<playersPerTeam;i++)g.players.push({id:`p${ti}${i}`,name:`p${ti}${i}`,teamId:t.id,tokenHash:hash(`p${ti}${i}`),active:true,selections:0});});
  const online=new Set(g.players.map(p=>p.id));
  const cmd=(type:string,payload:any={},at=0,actor:Actor={role:'host'})=>applyCommand(g,actor,{id:randomUUID(),type,payload},at,online);
  cmd('start');cmd('open-clue',{category:0,row:0}); const payload={attemptId:g.current!.id};cmd('start-group',payload,1000);
@@ -151,9 +151,9 @@ test('color substitution is simultaneous and supports twelve distinct team mappi
 
 test('math relay sends private expressions, accepts only final player, tracks mistakes without lockout',()=>{
  const {g,config,team,cmd,payload,actor,online}=setup('relay');
- assert.ok(puzzleReady(config));assert.equal(team.relay!.order.length,3);
+ assert.ok(puzzleReady(config));assert.equal(team.relay!.order.length,4);
  assert.equal(team.operator,team.relay!.order.at(-1));
- assert.equal(Object.values(team.assignments).flat().length,3);
+ assert.equal(Object.values(team.assignments).flat().length,4);
  const other=g.players.find(p=>p.teamId===g.teams[0].id&&p.id!==team.operator)!;
  assert.throws(()=>cmd('submit-puzzle',{...payload,answer:String(team.relay!.answer)},1500,{role:'player',playerId:other.id}),/operator/);
  cmd('submit-puzzle',{...payload,answer:String(team.relay!.answer!+1)},2000,actor);
@@ -205,4 +205,24 @@ test('fixed sample relays use the published questions and PEMDAS answers',async(
  const {fixedRelay}=await import('../server/relay');
  const {sampleRelays}=await import('../shared/sample-relays');
  assert.deepEqual(sampleRelays.map(expressions=>fixedRelay(expressions).answer),[19,13,44,74,18]);
+});
+
+test('relays allocate at least four steps fairly and only the final step owner submits',()=>{
+ for(const count of [1,2,3,4,5,8]) {
+  const {g,team,cmd,payload,online}=setup('relay',count);
+  const order=team.relay!.order;
+  assert.equal(order.length,Math.max(4,count));
+  const sizes=Object.values(team.assignments).map(a=>a.length);
+  assert.equal(sizes.reduce((a,b)=>a+b,0),order.length);
+  assert.ok(Math.max(...sizes)-Math.min(...sizes)<=1);
+  assert.equal(team.operator,order.at(-1));
+  for(const id of new Set(order)) {
+   const view=publicView(g,{role:'player',playerId:id},online,1000,null);
+   assert.deepEqual(view.current!.group!.puzzle!.teams[g.teams[0].id].assignments,{[id]:team.assignments[id]});
+   if(id!==team.operator)assert.throws(()=>cmd('submit-puzzle',{...payload,answer:String(team.relay!.answer)},2000,{role:'player',playerId:id}),/operator/);
+  }
+  assert.deepEqual(validateGame(g).current!.group!.puzzle!.teams[g.teams[0].id].relay!.order,order);
+  cmd('submit-puzzle',{...payload,answer:String(team.relay!.answer)},2000,{role:'player',playerId:team.operator});
+  assert.equal(team.finishedMs,1000);
+ }
 });
